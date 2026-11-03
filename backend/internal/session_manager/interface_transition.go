@@ -197,6 +197,9 @@ func (m *Manager) StartInterfaceTransition(
 	if rec.IsTerminated {
 		return domain.SessionInterfaceTransition{}, ErrTerminated
 	}
+	if rec.ReadOnly && target != domain.SessionModeChat {
+		return domain.SessionInterfaceTransition{}, fmt.Errorf("%w: read-only sessions require Codex Chat", ErrInterfaceHandoffUnsupported)
+	}
 	source := domain.NormalizeSessionMode(rec.Mode)
 	if target == source {
 		return domain.SessionInterfaceTransition{}, fmt.Errorf("%w: session %s is already in %s mode",

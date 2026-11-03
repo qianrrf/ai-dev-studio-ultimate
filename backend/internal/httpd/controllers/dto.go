@@ -531,6 +531,8 @@ type SessionArchiveSummary struct {
 
 // SpawnSessionRequest is the body of POST /api/v1/sessions.
 type SpawnSessionRequest struct {
+	// ReadOnly constrains the entire lifetime of a Codex Chat session.
+	ReadOnly        bool   `json:"readOnly,omitempty"`
 	ClientRequestID string `json:"clientRequestId,omitempty" maxLength:"128"`
 	// ProjectID is omitted for a standalone worker session.
 	ProjectID domain.ProjectID `json:"projectId,omitempty"`

@@ -149,6 +149,8 @@ func (s *Service) switchProvider(ctx context.Context, id domain.SessionID, reque
 	}
 	if record, found, err := s.sessions.GetSession(ctx, id); err != nil {
 		return err
+	} else if found && record.ReadOnly && request.TargetHarness != domain.HarnessCodex {
+		return &domain.ProviderSwitchError{Kind: domain.ProviderSwitchRefusalUnsupported, Detail: "read-only sessions require Codex Chat"}
 	} else if found && domain.NormalizeSessionMode(record.Mode) == domain.SessionModeTUI && s.terminalSwitcher != nil {
 		// One builder writes the note for both UIs.
 		started := time.Now()

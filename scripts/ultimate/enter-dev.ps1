@@ -1,6 +1,7 @@
 # Dot-source this file to configure only this PowerShell process.
-param([string]$GoBin, [string]$DshBin)
+param([string]$GoBin, [string]$DshBin, [ValidateSet('mxc', 'elevated', 'unelevated')][string]$CodexWindowsSandbox)
 $ErrorActionPreference = 'Stop'
+if ($CodexWindowsSandbox) { $env:AO_CODEX_WINDOWS_SANDBOX = $CodexWindowsSandbox }
 if ($GoBin) {
     if (-not (Test-Path -LiteralPath (Join-Path $GoBin 'go.exe'))) { throw 'GoBin must contain go.exe' }
     $env:PATH = $GoBin + ';' + $env:PATH

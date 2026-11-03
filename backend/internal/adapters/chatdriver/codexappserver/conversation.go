@@ -48,11 +48,12 @@ type conversation struct {
 	proc *process
 	log  *slog.Logger
 
-	threadID        string
-	historyParentID string
-	providerScopeID string
-	readOnly        bool
-	disableNetwork  bool
+	threadID             string
+	historyParentID      string
+	providerScopeID      string
+	readOnly             bool
+	disableExternalTools bool
+	disableNetwork       bool
 	// launchMode is the permission mode the thread started or resumed with;
 	// a turn without its own approval setting runs under it.
 	launchMode ports.PermissionMode
@@ -354,6 +355,11 @@ func (c *conversation) SendTurn(ctx context.Context, msg ports.ChatUserMessage) 
 
 	c.sendMu.Lock()
 	defer c.sendMu.Unlock()
+	if c.disableExternalTools {
+		if err := c.verifyExternalToolsDisabled(ctx); err != nil {
+			return ports.ChatTurnRef{}, err
+		}
+	}
 
 	params := map[string]any{
 		"threadId": c.threadID,
@@ -946,6 +952,9 @@ func (c *conversation) refuseDynamicToolCall(params json.RawMessage) error {
 // the returned list is a convenience for the caller that asked, not the only path by
 // which AO learns the outcome.
 func (c *conversation) ReloadMCPServers(ctx context.Context) (ports.ChatMCPReloadResult, error) {
+	if c.disableExternalTools {
+		return ports.ChatMCPReloadResult{}, ports.ErrChatUnsupported
+	}
 	// config/mcpServer/reload takes no params, verified against a live app-server.
 	if err := c.conn.request(ctx, codexproto.MethodConfigMcpServerReload, map[string]any{}, nil); err != nil {
 		return ports.ChatMCPReloadResult{}, fmt.Errorf("%s: %w", codexproto.MethodConfigMcpServerReload, err)
@@ -1005,6 +1014,37 @@ func (c *conversation) ReloadMCPServers(ctx context.Context) (ports.ChatMCPReloa
 		cursor = resp.NextCursor
 	}
 	return ports.ChatMCPReloadResult{Servers: servers, Authoritative: true}, nil
+}
+
+// Configuration can be overridden by managed plugins. Verify the thread's
+// actual inventory before dispatch rather than trusting enabled=false alone.
+func (c *conversation) verifyExternalToolsDisabled(ctx context.Context) error {
+	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var cursor *string
+	seen := map[string]bool{}
+	for {
+		var resp codexproto.ListMcpServerStatusResponse
+		if err := c.conn.request(checkCtx, codexproto.MethodMcpServerStatusList, codexproto.ListMcpServerStatusParams{ThreadID: &c.threadID, Cursor: cursor}, &resp); err != nil {
+			return fmt.Errorf("verify read-only external tool inventory: %w", err)
+		}
+		if resp.Data == nil {
+			return fmt.Errorf("%w: missing read-only tool inventory", ports.ErrChatUnsupported)
+		}
+		for _, server := range resp.Data {
+			if server.ServerInfo != nil || len(server.Tools)+len(server.Resources)+len(server.ResourceTemplates) != 0 {
+				return fmt.Errorf("%w: read-only thread exposes external server %q", ports.ErrChatUnsupported, server.Name)
+			}
+		}
+		if resp.NextCursor == nil || *resp.NextCursor == "" {
+			return nil
+		}
+		if seen[*resp.NextCursor] {
+			return fmt.Errorf("%w: incomplete read-only tool inventory", ports.ErrChatUnsupported)
+		}
+		seen[*resp.NextCursor] = true
+		cursor = resp.NextCursor
+	}
 }
 
 func (c *conversation) discardPending(requestID string) {

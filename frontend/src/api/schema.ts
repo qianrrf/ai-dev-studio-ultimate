@@ -5512,6 +5512,7 @@ export interface components {
             provisionState?: "provisioning" | "ready" | "failed";
             provisionSteps?: components["schemas"]["SessionProvisionStep"][];
             prs: components["schemas"]["SessionPRFacts"][];
+            readOnly?: boolean;
             /** @enum {string} */
             requestedOutput?: "artifact";
             reviewerConfig?: components["schemas"]["AgentConfig"];
@@ -7581,6 +7582,7 @@ export interface components {
             parentSessionId?: string;
             projectId?: string;
             prompt?: string;
+            readOnly?: boolean;
             /** @enum {string} */
             requestedOutput?: "artifact";
             /** @enum {string} */

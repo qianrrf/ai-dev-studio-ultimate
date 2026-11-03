@@ -322,6 +322,9 @@ type ChatStartConfig struct {
 	// ReadOnly requires a provider-enforced sandbox that cannot modify the
 	// workspace. It is used for review-owned conversations.
 	ReadOnly bool
+	// DisableExternalTools excludes inherited MCP servers, plugins, apps and
+	// subagents, whose actions are outside the native filesystem sandbox.
+	DisableExternalTools bool
 	// DisableNetwork requests tool network isolation for read-only background
 	// conversations. Supporting drivers must not inherit reviewer network access.
 	DisableNetwork bool
@@ -368,9 +371,11 @@ type ChatResumeConfig struct {
 	// Model is optional; empty keeps the provider conversation's current model.
 	Model string
 	// Effort is optional; empty keeps the provider conversation's current effort.
-	Effort      string
-	Permissions PermissionMode
-	ReadOnly    bool
+	Effort               string
+	Permissions          PermissionMode
+	ReadOnly             bool
+	DisableExternalTools bool
+	DisableNetwork       bool
 	// SystemPrompt is recomputed by the session manager on restore and reapplied
 	// to the provider process. It is not persisted in the conversation transcript.
 	SystemPrompt string

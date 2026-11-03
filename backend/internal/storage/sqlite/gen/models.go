@@ -763,6 +763,7 @@ type Session struct {
 	BranchNaming                     bool
 	TemporaryBranch                  string
 	TerminatedAt                     sql.NullTime
+	ReadOnly                         bool
 }
 
 type SessionAgentAccount struct {

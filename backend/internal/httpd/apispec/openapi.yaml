@@ -15980,6 +15980,8 @@ components:
           items:
             $ref: '#/components/schemas/SessionPRFacts'
           type: array
+        readOnly:
+          type: boolean
         requestedOutput:
           enum:
           - artifact
@@ -21379,6 +21381,8 @@ components:
         prompt:
           maxLength: 16384
           type: string
+        readOnly:
+          type: boolean
         requestedOutput:
           enum:
           - artifact

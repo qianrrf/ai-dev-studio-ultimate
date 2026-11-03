@@ -411,6 +411,20 @@ func (s *Service) Start(ctx context.Context, cfg StartConfig) (*Controller, erro
 // provider-switch saga. Callers must hold the typed controller gate.
 func (s *Service) startLocked(ctx context.Context, cfg StartConfig) (*Controller, error) {
 	owner := conversationOwner(cfg)
+	if cfg.SessionID != "" && s.sessions != nil {
+		rec, found, err := s.sessions.GetSession(ctx, cfg.SessionID)
+		if err != nil {
+			return nil, fmt.Errorf("load session launch constraints: %w", err)
+		}
+		if found && rec.ReadOnly {
+			cfg.ReadOnly = true
+			cfg.DisableExternalTools = true
+			cfg.DisableNetwork = true
+		}
+	}
+	if cfg.ReadOnly && cfg.Harness != domain.HarnessCodex {
+		return nil, fmt.Errorf("%w: read-only sessions require Codex Chat", ports.ErrChatUnsupported)
+	}
 	if owner.Kind == domain.ConversationOwnerReview {
 		cfg.ReadOnly = true
 	}
@@ -838,6 +852,8 @@ func (s *Service) startLocked(ctx context.Context, cfg StartConfig) (*Controller
 			Effort:                 cfg.Effort,
 			Permissions:            cfg.Permissions,
 			ReadOnly:               cfg.ReadOnly,
+			DisableExternalTools:   cfg.DisableExternalTools,
+			DisableNetwork:         cfg.DisableNetwork,
 			SystemPrompt:           providerSystemPrompt,
 			ProviderScopeID:        providerScopeID,
 			ProviderIDsScoped:      providerBoundaryID != "" || activeBranch.ProviderIDsScoped,
@@ -856,6 +872,8 @@ func (s *Service) startLocked(ctx context.Context, cfg StartConfig) (*Controller
 			Effort:                cfg.Effort,
 			Permissions:           cfg.Permissions,
 			ReadOnly:              cfg.ReadOnly,
+			DisableExternalTools:  cfg.DisableExternalTools,
+			DisableNetwork:        cfg.DisableNetwork,
 			SystemPrompt:          providerSystemPrompt,
 			ProviderScopeID:       providerScopeID,
 			AdditionalDirectories: cfg.AdditionalDirectories,
@@ -2761,6 +2779,15 @@ func (s *Service) setTurnSettings(ctx context.Context, controller *Controller, o
 	defer controller.configMu.Unlock()
 	// The turn-settings endpoint does not own provider session mode choices.
 	previous := controller.Settings()
+	if s.sessions != nil && owner.Kind == domain.ConversationOwnerSession {
+		rec, found, err := s.sessions.GetSession(ctx, domain.SessionID(owner.ID))
+		if err != nil {
+			return domain.ConversationSettings{}, err
+		}
+		if found && rec.ReadOnly && settings.ApprovalMode != previous.ApprovalMode {
+			return domain.ConversationSettings{}, ErrReviewerPermissionsFixed
+		}
+	}
 	if owner.Kind == domain.ConversationOwnerReview && settings.ApprovalMode != previous.ApprovalMode {
 		return domain.ConversationSettings{}, ErrReviewerPermissionsFixed
 	}

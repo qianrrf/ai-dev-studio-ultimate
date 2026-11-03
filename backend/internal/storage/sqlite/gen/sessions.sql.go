@@ -227,7 +227,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     claude_activity_facts, codex_activity_facts,
     hibernated_at, stale_binary_since, stale_binary_version, stale_binary_launch, stale_binary_switch_failed_at,
     client_request_id, client_request_hash, client_request_committed,
-    runtime_released_launch_id
+    read_only, runtime_released_launch_id
 FROM sessions WHERE id = ?
 `
 
@@ -309,6 +309,7 @@ type GetSessionRow struct {
 	ClientRequestID                  string
 	ClientRequestHash                string
 	ClientRequestCommitted           bool
+	ReadOnly                         bool
 	RuntimeReleasedLaunchID          string
 }
 
@@ -393,6 +394,7 @@ func (q *Queries) GetSession(ctx context.Context, id domain.SessionID) (GetSessi
 		&i.ClientRequestID,
 		&i.ClientRequestHash,
 		&i.ClientRequestCommitted,
+		&i.ReadOnly,
 		&i.RuntimeReleasedLaunchID,
 	)
 	return i, err
@@ -417,7 +419,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     claude_activity_facts, codex_activity_facts,
     hibernated_at, stale_binary_since, stale_binary_version, stale_binary_launch, stale_binary_switch_failed_at,
     client_request_id, client_request_hash, client_request_committed,
-    runtime_released_launch_id
+    read_only, runtime_released_launch_id
 FROM sessions WHERE automation_run_id = ?
 `
 
@@ -499,6 +501,7 @@ type GetSessionByAutomationRunIDRow struct {
 	ClientRequestID                  string
 	ClientRequestHash                string
 	ClientRequestCommitted           bool
+	ReadOnly                         bool
 	RuntimeReleasedLaunchID          string
 }
 
@@ -583,6 +586,7 @@ func (q *Queries) GetSessionByAutomationRunID(ctx context.Context, automationRun
 		&i.ClientRequestID,
 		&i.ClientRequestHash,
 		&i.ClientRequestCommitted,
+		&i.ReadOnly,
 		&i.RuntimeReleasedLaunchID,
 	)
 	return i, err
@@ -604,7 +608,7 @@ INSERT INTO sessions (
     requested_output,
     created_at, updated_at, is_pinned, pinned_at, auto_inject_review, auto_inject_ci,
     provision_state, provision_error, is_task_preparation, automation_run_id, automation_launch_completed,
-    client_request_id, client_request_hash
+    client_request_id, client_request_hash, read_only
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -612,7 +616,7 @@ INSERT INTO sessions (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?
+    ?, ?, ?, ?
 )
 `
 
@@ -680,6 +684,7 @@ type InsertSessionParams struct {
 	AutomationLaunchCompleted        bool
 	ClientRequestID                  string
 	ClientRequestHash                string
+	ReadOnly                         bool
 }
 
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
@@ -747,6 +752,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.AutomationLaunchCompleted,
 		arg.ClientRequestID,
 		arg.ClientRequestHash,
+		arg.ReadOnly,
 	)
 	return err
 }
@@ -770,7 +776,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     claude_activity_facts, codex_activity_facts,
     hibernated_at, stale_binary_since, stale_binary_version, stale_binary_launch, stale_binary_switch_failed_at,
     client_request_id, client_request_hash, client_request_committed,
-    runtime_released_launch_id
+    read_only, runtime_released_launch_id
 FROM sessions ORDER BY project_id, num
 `
 
@@ -852,6 +858,7 @@ type ListAllSessionsRow struct {
 	ClientRequestID                  string
 	ClientRequestHash                string
 	ClientRequestCommitted           bool
+	ReadOnly                         bool
 	RuntimeReleasedLaunchID          string
 }
 
@@ -942,6 +949,7 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]ListAllSessionsRow, er
 			&i.ClientRequestID,
 			&i.ClientRequestHash,
 			&i.ClientRequestCommitted,
+			&i.ReadOnly,
 			&i.RuntimeReleasedLaunchID,
 		); err != nil {
 			return nil, err
@@ -1064,7 +1072,7 @@ SELECT id, project_id, num, issue_id, kind, harness,
     claude_activity_facts, codex_activity_facts,
     hibernated_at, stale_binary_since, stale_binary_version, stale_binary_launch, stale_binary_switch_failed_at,
     client_request_id, client_request_hash, client_request_committed,
-    runtime_released_launch_id
+    read_only, runtime_released_launch_id
 FROM sessions WHERE project_id IS ? ORDER BY num
 `
 
@@ -1146,6 +1154,7 @@ type ListSessionsByProjectRow struct {
 	ClientRequestID                  string
 	ClientRequestHash                string
 	ClientRequestCommitted           bool
+	ReadOnly                         bool
 	RuntimeReleasedLaunchID          string
 }
 
@@ -1236,6 +1245,7 @@ func (q *Queries) ListSessionsByProject(ctx context.Context, projectID *domain.P
 			&i.ClientRequestID,
 			&i.ClientRequestHash,
 			&i.ClientRequestCommitted,
+			&i.ReadOnly,
 			&i.RuntimeReleasedLaunchID,
 		); err != nil {
 			return nil, err

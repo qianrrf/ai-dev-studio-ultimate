@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -306,6 +307,7 @@ func (d *Driver) Start(ctx context.Context, cfg ports.ChatStartConfig) (ports.Ch
 
 	policy, sandbox, reviewer := launchApprovalSettings(cfg.Permissions, cfg.ReadOnly)
 	conv.readOnly = cfg.ReadOnly
+	conv.disableExternalTools = cfg.DisableExternalTools
 	conv.disableNetwork = cfg.DisableNetwork
 	conv.launchMode = cfg.Permissions
 	params := map[string]any{
@@ -323,7 +325,12 @@ func (d *Driver) Start(ctx context.Context, cfg ports.ChatStartConfig) (ports.Ch
 	// thread/start has no top-level effort field either; carry the durable AO
 	// choice as a config override like thread/resume does, so a fresh thread
 	// does not silently fall back to the provider default.
-	if config := threadConfig(cfg.Effort, cfg.MCPServers); len(config) > 0 {
+	config, err := conv.openConfig(ctx, cfg.Effort, cfg.MCPServers)
+	if err != nil {
+		_ = conv.Terminate()
+		return nil, err
+	}
+	if len(config) > 0 {
 		params["config"] = config
 	}
 	if cfg.SystemPrompt != "" {
@@ -382,6 +389,14 @@ func (d *Driver) Resume(ctx context.Context, cfg ports.ChatResumeConfig) (ports.
 		// loaded thread. Host replay bridges output and unresolved server requests
 		// across the daemon detach without waiting for the active turn to settle.
 		conv.readOnly = cfg.ReadOnly
+		conv.disableExternalTools = cfg.DisableExternalTools
+		conv.disableNetwork = cfg.DisableNetwork
+		if cfg.DisableExternalTools {
+			if _, err := conv.openConfig(ctx, cfg.Effort, cfg.MCPServers); err != nil {
+				_ = conv.Close()
+				return nil, err
+			}
+		}
 		conv.launchMode = cfg.Permissions
 		// Neither the tier nor the collaboration mode the thread was left on is
 		// known; the next turn states both.
@@ -392,7 +407,9 @@ func (d *Driver) Resume(ctx context.Context, cfg ports.ChatResumeConfig) (ports.
 
 	policy, sandbox, reviewer := launchApprovalSettings(cfg.Permissions, cfg.ReadOnly)
 	conv.readOnly = cfg.ReadOnly
+	conv.disableExternalTools = cfg.DisableExternalTools
 	conv.launchMode = cfg.Permissions
+	conv.disableNetwork = cfg.DisableNetwork
 	params := map[string]any{
 		"threadId":          cfg.ProviderConversationID,
 		"cwd":               cfg.WorkspacePath,
@@ -406,7 +423,12 @@ func (d *Driver) Resume(ctx context.Context, cfg ports.ChatResumeConfig) (ports.
 	// thread/resume has no top-level effort field. Codex exposes persistent
 	// reasoning effort as a config override, so carry the durable AO choice into
 	// the resumed thread instead of silently falling back to the provider default.
-	if config := threadConfig(cfg.Effort, cfg.MCPServers); len(config) > 0 {
+	config, err := conv.openConfig(ctx, cfg.Effort, cfg.MCPServers)
+	if err != nil {
+		_ = conv.Terminate()
+		return nil, err
+	}
+	if len(config) > 0 {
 		params["config"] = config
 	}
 	// Developer instructions are launch context, not durable conversation
@@ -522,6 +544,59 @@ func threadConfig(effort string, servers []ports.ChatMCPServerConfig) map[string
 	return config
 }
 
+// External tools run outside Codex's filesystem sandbox. Public read-only
+// sessions therefore disable them, including names inherited from user config.
+func (c *conversation) openConfig(ctx context.Context, effort string, servers []ports.ChatMCPServerConfig) (map[string]any, error) {
+	config := threadConfig(effort, servers)
+	if !c.disableExternalTools {
+		return config, nil
+	}
+	var resp struct {
+		Config struct {
+			MCPServers map[string]json.RawMessage `json:"mcp_servers"`
+			Plugins    map[string]json.RawMessage `json:"plugins"`
+			Apps       map[string]json.RawMessage `json:"apps"`
+			Windows    struct {
+				Sandbox string `json:"sandbox"`
+			} `json:"windows"`
+		} `json:"config"`
+	}
+	readCtx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+	defer cancel()
+	if err := c.conn.request(readCtx, "config/read", map[string]any{"includeLayers": false}, &resp); err != nil {
+		return nil, fmt.Errorf("read read-only tool inventory: %w", err)
+	}
+	if runtime.GOOS == "windows" && c.disableNetwork {
+		switch resp.Config.Windows.Sandbox {
+		case "elevated", "mxc":
+		default:
+			return nil, fmt.Errorf("%w: Windows read-only review requires explicit elevated or mxc tool network isolation", ports.ErrChatUnsupported)
+		}
+	}
+	disabled := func(names map[string]json.RawMessage) map[string]any {
+		result := make(map[string]any, len(names)+1)
+		for name := range names {
+			result[name] = map[string]any{"enabled": false}
+		}
+		return result
+	}
+	mcp := disabled(resp.Config.MCPServers)
+	if supplied, ok := config["mcp_servers"].(map[string]any); ok {
+		for name, value := range supplied {
+			entry := value.(map[string]any)
+			entry["enabled"] = false
+			delete(entry, "default_tools_approval_mode")
+			mcp[name] = entry
+		}
+	}
+	plugins, apps := disabled(resp.Config.Plugins), disabled(resp.Config.Apps)
+	plugins["_default"], apps["_default"] = map[string]any{"enabled": false}, map[string]any{"enabled": false}
+	config["mcp_servers"], config["plugins"], config["apps"] = mcp, plugins, apps
+	config["features"] = map[string]any{"apps": false, "multi_agent": false, "browser_use": false, "browser_use_external": false, "computer_use": false}
+	config["agents"] = map[string]any{"enabled": false}
+	return config, nil
+}
+
 // connect spawns app-server and completes the initialize handshake.
 func (d *Driver) connect(ctx context.Context, workdir string, env map[string]string, providerScopeID string) (*conversation, error) {
 	bin, err := d.plugin.ResolveBinary(ctx)
@@ -575,13 +650,18 @@ func (d *Driver) connectSession(
 			return nil, false, fmt.Errorf("%w: %w", ports.ErrChatDriverUnavailable, err)
 		}
 	}
+	launchEnv := envSlice(env)
+	args, err := appServerArgs(launchEnv)
+	if err != nil {
+		return nil, false, err
+	}
 	hostConfig := persistenthost.Config{
 		SessionID:     string(sessionID),
 		ReconnectOnly: reconnectOnly,
 		DataDir:       dataDir,
 		Workdir:       workdir,
-		Env:           envSlice(env),
-		Argv:          []string{bin, "app-server"},
+		Env:           launchEnv,
+		Argv:          append([]string{bin}, args...),
 	}
 	if prepareEnv != nil {
 		hostConfig.Prepare = func(prepareCtx context.Context) (persistenthost.PreparedProvider, error) {
@@ -589,8 +669,13 @@ func (d *Driver) connectSession(
 			if prepareErr != nil {
 				return persistenthost.PreparedProvider{}, prepareErr
 			}
+			launchEnv := envSlice(preparedEnv)
+			args, err := appServerArgs(launchEnv)
+			if err != nil {
+				return persistenthost.PreparedProvider{}, err
+			}
 			return persistenthost.PreparedProvider{
-				Env: envSlice(preparedEnv), Argv: []string{bin, "app-server"},
+				Env: launchEnv, Argv: append([]string{bin}, args...),
 			}, nil
 		}
 	}
@@ -730,7 +815,10 @@ func launchApprovalSettings(mode ports.PermissionMode, readOnly bool) (policy, s
 
 // spawnAppServer is the real launcher.
 func spawnAppServer(ctx context.Context, bin, workdir string, env []string) (*process, error) {
-	args := []string{"app-server"}
+	args, err := appServerArgs(env)
+	if err != nil {
+		return nil, err
+	}
 	cmd := aoprocess.Command(bin, args...)
 	cmd.Dir = workdir
 	if len(env) > 0 {
@@ -778,6 +866,24 @@ func spawnAppServer(ctx context.Context, bin, workdir string, env []string) (*pr
 			return nil
 		},
 	}, nil
+}
+
+// Set sandbox implementation at process launch so config/read can verify the
+// surviving host's actual setting after a daemon restart.
+func appServerArgs(env []string) ([]string, error) {
+	for _, entry := range env {
+		key, value, _ := strings.Cut(entry, "=")
+		if !strings.EqualFold(key, "AO_CODEX_WINDOWS_SANDBOX") || value == "" {
+			continue
+		}
+		switch value {
+		case "mxc", "elevated", "unelevated":
+			return []string{"-c", "windows.sandbox=" + value, "app-server"}, nil
+		default:
+			return nil, fmt.Errorf("unsupported AO_CODEX_WINDOWS_SANDBOX %q", value)
+		}
+	}
+	return []string{"app-server"}, nil
 }
 
 // envSlice merges AO's session env OVER the daemon's own, in the KEY=VALUE form
@@ -833,6 +939,7 @@ func (d *Driver) ForkIntoHost(ctx context.Context, sourceProviderConversationID,
 	}
 	policy, sandbox, reviewer := launchApprovalSettings(cfg.Permissions, cfg.ReadOnly)
 	conv.readOnly = cfg.ReadOnly
+	conv.disableExternalTools = cfg.DisableExternalTools
 	conv.disableNetwork = cfg.DisableNetwork
 	conv.launchMode = cfg.Permissions
 	params := map[string]any{
@@ -850,7 +957,12 @@ func (d *Driver) ForkIntoHost(ctx context.Context, sourceProviderConversationID,
 	}
 	// Same overrides as thread/start and thread/resume: without the MCP servers
 	// a fresh fork has no AO tools until a restart resumes it.
-	if config := threadConfig(cfg.Effort, cfg.MCPServers); len(config) > 0 {
+	config, err := conv.openConfig(ctx, cfg.Effort, cfg.MCPServers)
+	if err != nil {
+		_ = conv.Terminate()
+		return nil, err
+	}
+	if len(config) > 0 {
 		params["config"] = config
 	}
 	if cfg.SystemPrompt != "" {

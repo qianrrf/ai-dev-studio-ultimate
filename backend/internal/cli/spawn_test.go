@@ -17,6 +17,36 @@ func authorizedAgentsJSON(agent string) string {
 	return readinessAgentsJSON(agent, "installed", "authorized")
 }
 
+func TestReadOnlySpawnForwardsLifetimeConstraint(t *testing.T) {
+	cfg := setConfigEnv(t)
+	t.Setenv("AO_SESSION_ID", "")
+	var captured spawnRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/projects/demo":
+			_, _ = io.WriteString(w, `{"project":{"id":"demo","name":"Demo","path":"/repo/demo","defaultBranch":"main"}}`)
+		case "/api/v1/agents/readiness/ensure":
+			_, _ = io.WriteString(w, authorizedAgentsJSON("codex"))
+		case "/api/v1/sessions":
+			if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+				t.Error(err)
+			}
+			_, _ = io.WriteString(w, `{"session":{"id":"demo-1","status":"idle"}}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	writeRunFileFor(t, cfg, srv)
+	if _, _, err := executeCLI(t, Deps{ProcessAlive: func(int) bool { return true }}, "spawn", "--project", "demo", "--agent", "codex", "--mode", "chat", "--read-only", "--name", "review"); err != nil {
+		t.Fatal(err)
+	}
+	if !captured.ReadOnly || captured.Mode != "chat" || captured.Harness != "codex" {
+		t.Fatalf("request = %+v", captured)
+	}
+}
+
 func readinessAgentsJSON(agent, installation, authentication string) string {
 	return `{"agents":[{"id":` + jsonQuote(agent) + `,"label":` + jsonQuote(agent) +
 		`,"installation":{"state":` + jsonQuote(installation) + `,"freshness":"fresh","reasonCode":"test","reason":"test"}` +

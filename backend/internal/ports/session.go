@@ -16,6 +16,7 @@ var ErrActivityProjectionContention = errors.New("activity projection contention
 // SpawnConfig is the request to start a new session: which project/issue, which
 // agent harness, and the branch/prompt the agent launches with.
 type SpawnConfig struct {
+	ReadOnly  bool
 	ProjectID domain.ProjectID
 	IssueID   domain.IssueID
 	// AutomationRunID makes one scheduled occurrence idempotent across daemon

@@ -265,6 +265,8 @@ type SessionMetadata struct {
 // facts: identity, agent harness, activity_state, is_terminated, and operational
 // metadata. The user-facing Status is derived from these facts plus PR facts.
 type SessionRecord struct {
+	// ReadOnly is an immutable launch constraint, preserved across recovery.
+	ReadOnly  bool      `json:"readOnly,omitempty"`
 	ID        SessionID `json:"id"`
 	ProjectID ProjectID `json:"projectId,omitempty"`
 	// AutomationRunID is the optional durable origin for an unattended spawn.

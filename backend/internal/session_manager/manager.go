@@ -1128,6 +1128,9 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		agentConfig = resolved
 	}
 	cfg.RequestedMode = mode
+	if cfg.ReadOnly && (cfg.Harness != domain.HarnessCodex || mode != domain.SessionModeChat) {
+		return domain.SessionRecord{}, 0, 0, fmt.Errorf("%w: read-only sessions require Codex Chat", ports.ErrChatUnsupported)
+	}
 
 	// Adapters whose model picker is an agent-owned mode list (e.g. Amp) keep
 	// their selectable values in AgentConfig.Mode. Normalize a copy for the
@@ -5772,6 +5775,7 @@ func normalizeWorkspacePath(p string) string {
 
 func seedRecord(cfg ports.SpawnConfig, projectConfig domain.ProjectConfig, now time.Time) domain.SessionRecord {
 	return domain.SessionRecord{
+		ReadOnly:          cfg.ReadOnly,
 		ProjectID:         cfg.ProjectID,
 		IssueID:           cfg.IssueID,
 		AutomationRunID:   cfg.AutomationRunID,
