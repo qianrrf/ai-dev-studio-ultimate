@@ -15,6 +15,7 @@ gates. A documented capability is not a passing live test.
 - Preserve Apache-2.0 and the original component/third-party notices.
 
 See [source audit](source-audit.md) and [validation](validation.md).
+中文交付进展、阻塞与继续步骤见 [交付记录](delivery.zh-CN.md)。
 
 ## Delivery gates
 
