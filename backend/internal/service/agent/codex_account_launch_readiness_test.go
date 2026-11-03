@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -9,6 +10,44 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
+
+func TestLaunchWithoutDeviceCredentialUsesNativeProviderAuthRequirement(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		state domain.AgentAuthenticationState
+		err   error
+		want  domain.AgentAuthenticationState
+	}{
+		{"custom provider", domain.AgentAuthenticationNotApplicable, nil, domain.AgentAuthenticationNotApplicable},
+		{"signed out", domain.AgentAuthenticationUnauthorized, nil, domain.AgentAuthenticationUnauthorized},
+		{"native read unavailable", "", errors.New("offline"), domain.AgentAuthenticationUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reads := 0
+			var manager *codexAccountManager
+			factory := &fakeCodexAccountFactory{open: func(account ports.CodexAccountContext) (ports.CodexAccountClient, error) {
+				if account.Managed || account.Home != manager.globalHome {
+					t.Fatal("provider check must use the existing device config")
+				}
+				return &fakeCodexAccountClient{readFn: func(_ context.Context, refresh bool) (ports.CodexAccountObservation, error) {
+					reads++
+					if refresh {
+						t.Fatal("provider check must not refresh credentials")
+					}
+					return ports.CodexAccountObservation{Authentication: tc.state}, tc.err
+				}}, nil
+			}}
+			manager = newTestCodexAccountManager(t, factory, nil)
+			manager.accountStoreReady = true
+			manager.reconciliation = domain.CodexDeviceReconciliation{Status: domain.CodexDeviceReconciliationVerified}
+			service := &Service{codexAccounts: manager}
+			got, _, handled := service.structuredCodexAuthenticationRecord(context.Background(), string(domain.HarnessCodex), domain.AgentReadinessPurposeLaunch)
+			if !handled || got.State != tc.want || reads != 1 {
+				t.Fatalf("authentication = %s, handled = %t, reads = %d; want %s and one native read", got.State, handled, reads, tc.want)
+			}
+		})
+	}
+}
 
 const otherCodexAccountID = "bb1e9a5d-37ad-43f8-83bd-13de8168f8af"
 

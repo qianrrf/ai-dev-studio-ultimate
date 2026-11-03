@@ -121,7 +121,9 @@ func (s *Service) structuredCodexAuthenticationRecord(ctx context.Context, agent
 			observation.Diagnostics = []domain.AgentAuthDiagnostic{domain.NewAgentAuthDiagnostic("codex_account", "account_sync_pending")}
 			return observation, none, true
 		}
-		return successfulAuthentication(s.codexAccounts.now(), domain.AgentAuthenticationUnauthorized, domain.AgentReadinessReasonUnauthorized, "Sign in to Codex or add an account in Settings."), none, true
+		// A custom provider can authenticate through config or environment with
+		// no auth.json. Ask Codex whether OpenAI login is required before gating launch.
+		return s.codexAccounts.deviceProviderAuthentication(ctx), none, true
 	}
 	record, ok := s.codexAccounts.catalog.record(id)
 	if !ok {
@@ -164,6 +166,35 @@ func (s *Service) structuredCodexAuthenticationRecord(ctx context.Context, agent
 		return latest.Snapshot.Authentication, latest, true
 	}
 	return result, record, true
+}
+
+func (m *codexAccountManager) deviceProviderAuthentication(ctx context.Context) domain.AgentAuthenticationObservation {
+	ctx, cancel := context.WithTimeout(ctx, codexAccountAuthTimeout)
+	defer cancel()
+	at := m.now()
+	failed := failedAuthentication(at, domain.AgentReadinessReasonAuthCheckFailed, "Codex provider authentication check was inconclusive.")
+	select {
+	case m.processes <- struct{}{}:
+		defer func() { <-m.processes }()
+	case <-ctx.Done():
+		return failed
+	}
+	account := ports.CodexAccountContext{Home: m.globalHome}
+	release, err := m.acquireGlobalRead(ctx, account)
+	if err != nil {
+		return failed
+	}
+	defer release()
+	client, err := m.factory.Open(ctx, account)
+	if err != nil {
+		return failed
+	}
+	defer func() { _ = client.Close() }()
+	observation, err := client.Read(ctx, false)
+	if err != nil {
+		return failed
+	}
+	return accountAuthenticationObservation(at, observation.Authentication)
 }
 
 // CachedCodexAccounts returns the current in-memory view without native work.
