@@ -56,14 +56,15 @@ func TestBrewCleanupRetainsDetachedProviderHub(t *testing.T) {
 	s, ran := updateWhileRunningService(t, nil)
 	s.SetHarnessUpdateObserver(&updateObserverStub{})
 	s.deferredCleanups = map[Target]string{TargetKimi: "kimi-code"}
+	cellar := filepath.Join(t.TempDir(), "Cellar", "kimi-code")
 	alive := true
 	s.commands = commandRunnerFunc(func(_ context.Context, argv []string, out, _ io.Writer) error {
 		text := "1 /usr/local/bin/ao\n"
 		if argv[0] == "ps" && alive {
-			text = "/opt/homebrew/Cellar/kimi-code/1.2.0/bin/kimi --provider-hub\n"
+			text = filepath.Join(cellar, "1.2.0", "bin", "kimi") + " --provider-hub\n"
 		}
 		if len(argv) > 1 && argv[1] == "--cellar" {
-			text = "/opt/homebrew/Cellar/kimi-code\n"
+			text = cellar + "\n"
 		}
 		if len(argv) > 0 && argv[0] == "ps" && !strings.HasPrefix(text, "1 ") {
 			text = "123 " + text
@@ -96,7 +97,7 @@ func TestManagedProcessReferencesRespectReleaseBoundaries(t *testing.T) {
 		{"mutable launcher", "node " + filepath.Join(s.managedRoot, "bin", "codex"), true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := s.managedReleaseHasProcess(managedProcessSnapshot{commands: []string{tt.command}}, TargetCodex, record, "v1")
+			got := s.managedReleaseHasProcess(managedProcessSnapshot{commands: []string{s.managedProcessPath(tt.command)}}, TargetCodex, record, "v1")
 			if got != tt.want {
 				t.Fatalf("release referenced=%v want %v", got, tt.want)
 			}

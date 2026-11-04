@@ -58,7 +58,7 @@ func TestNativeForkHandoffRetainsEachExchangeOnce(t *testing.T) {
 			t.Cleanup(func() { svc.StopAll(ctx) })
 			server.reply("thread/resume", `{"thread":{"id":"thread-A"}}`)
 			server.reply("thread/read", forkHandoffHistory("thread-A", "", "alpha remembered", false))
-			if _, err := svc.Start(ctx, chatsvc.StartConfig{SessionID: rec.ID, ProjectID: rec.ProjectID, Harness: rec.Harness, WorkspacePath: "/tmp/ws", ProviderConversationID: "thread-A"}); err != nil {
+			if _, err := svc.Start(ctx, chatsvc.StartConfig{SessionID: rec.ID, ProjectID: rec.ProjectID, Harness: rec.Harness, WorkspacePath: testWorkspacePath, ProviderConversationID: "thread-A"}); err != nil {
 				t.Fatal(err)
 			}
 			before, err := svc.Snapshot(ctx, rec.ID)
@@ -82,7 +82,7 @@ func TestNativeForkHandoffRetainsEachExchangeOnce(t *testing.T) {
 			// operation before resuming its full copied transcript through Chat.
 			terminalDriver, terminalServer := newTestDriver(t)
 			terminalServer.reply("thread/resume", `{"thread":{"id":"thread-A"}}`)
-			terminal, err := terminalDriver.Resume(ctx, ports.ChatResumeConfig{WorkspacePath: "/tmp/ws", ProviderConversationID: "thread-A"})
+			terminal, err := terminalDriver.Resume(ctx, ports.ChatResumeConfig{WorkspacePath: testWorkspacePath, ProviderConversationID: "thread-A"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -132,7 +132,7 @@ func TestNativeForkHandoffRetainsEachExchangeOnce(t *testing.T) {
 			}
 			svc = chatsvc.New(chatsvc.Options{Store: st, Sessions: st, Reader: reader, Drivers: handoffDriverRegistry{resumedDriver}, NewID: uuid.NewString})
 			lcm := lifecycle.New(st, nil)
-			cfg := chatsvc.StartConfig{SessionID: rec.ID, ProjectID: rec.ProjectID, Harness: rec.Harness, WorkspacePath: "/tmp/ws", ProviderConversationID: fork, ProviderHandoff: reservation,
+			cfg := chatsvc.StartConfig{SessionID: rec.ID, ProjectID: rec.ProjectID, Harness: rec.Harness, WorkspacePath: testWorkspacePath, ProviderConversationID: fork, ProviderHandoff: reservation,
 				ControllerReady: func(start chatsvc.StartResult) (chatsvc.ControllerCommit, error) {
 					metadata := rec.Metadata
 					metadata.ControllerGeneration = start.ControllerGeneration
@@ -217,7 +217,7 @@ func forkHandoffHistory(thread, parent, firstAnswer string, withNewTurn bool) st
 	turns := []any{turn("shared", "remember alpha", firstAnswer)}
 	shared := turns[0].(map[string]any)
 	shared["items"] = append(shared["items"].([]any), map[string]any{
-		"id": "shared-command", "type": "commandExecution", "command": "pwd", "cwd": "/tmp/ws",
+		"id": "shared-command", "type": "commandExecution", "command": "pwd", "cwd": testWorkspacePath,
 		"aggregatedOutput": "/tmp/ws\n", "exitCode": 0, "status": "completed",
 	})
 	if withNewTurn {

@@ -52,11 +52,12 @@ func quoteWindowsBatchArg(value string) string {
 }
 
 func refreshExecutablePath() {
-	paths := []string{
+	paths := make([]string, 0, 9)
+	paths = append(paths,
 		os.Getenv("Path"),
 		registryPath(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\Session Manager\Environment`),
 		registryPath(registry.CURRENT_USER, `Environment`),
-	}
+	)
 	paths = append(paths, windowsGitPaths(os.Getenv, registryString)...)
 	if merged := mergeWindowsPath(paths...); merged != "" {
 		_ = os.Setenv("Path", merged)

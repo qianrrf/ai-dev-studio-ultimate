@@ -15,6 +15,7 @@ import (
 // a repository contains a branch that shadows Git's FETCH_HEAD pseudo-ref.
 func TestPRCheckoutByVerifiedSHAWithFETCHHEADBranch(t *testing.T) {
 	repo := newWorkspaceRepo(t)
+	runGit(t, repo, "config", "core.autocrlf", "false")
 	runGit(t, repo, "branch", "FETCH_HEAD")
 	runGit(t, repo, "switch", "-c", "pr-topic")
 	if err := os.WriteFile(filepath.Join(repo, "pr.txt"), []byte("PR contents\n"), 0o600); err != nil {

@@ -11,6 +11,7 @@ func TestContinueConfiguredProvidersResolvesModelKeys(t *testing.T) {
 	home := t.TempDir()
 	workspace := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("CONTINUE_GLOBAL_DIR", "")
 	for _, name := range []string{"MISTRAL_KEY", "GEMINI_KEY", "DEEPSEEK_KEY", "MISSING_KEY"} {
 		t.Setenv(name, "")
@@ -79,6 +80,7 @@ models:
 func TestContinueConfiguredProvidersHonorsGlobalDir(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home"))
 	dir := filepath.Join(root, "continue-home")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)

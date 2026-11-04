@@ -12,6 +12,7 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 func TestManifest(t *testing.T) {
@@ -657,13 +658,7 @@ func TestGetAgentHooksSeedsAOManagedCredentialsFromUserKimiHome(t *testing.T) {
 	if string(got) != string(userCredentials) {
 		t.Fatalf("AO credentials = %s, want %s", got, userCredentials)
 	}
-	info, err := os.Stat(targetPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := info.Mode().Perm(), os.FileMode(0o600); got != want {
-		t.Fatalf("AO credentials permissions = %o, want %o", got, want)
-	}
+	testutil.AssertPrivatePath(t, targetPath, 0o600)
 }
 
 // Kimi renews its 15-minute tokens with a rotating refresh token, so a copy

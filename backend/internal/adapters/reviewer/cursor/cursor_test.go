@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 type captureAgent struct {
@@ -221,21 +222,9 @@ func TestPreLaunchWritesIsolatedReviewerConfig(t *testing.T) {
 	if got := reviewerProfileDir(inv); got != profileDir {
 		t.Fatalf("profile dir = %q, want %q", got, profileDir)
 	}
-	profileInfo, err := os.Stat(profileDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if profileInfo.Mode().Perm() != 0o700 {
-		t.Fatalf("profile mode = %o, want 700", profileInfo.Mode().Perm())
-	}
+	testutil.AssertPrivatePath(t, profileDir, 0o700)
 	configPath := filepath.Join(profileDir, cursorConfigFileName)
-	configInfo, err := os.Stat(configPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if configInfo.Mode().Perm() != 0o600 {
-		t.Fatalf("config mode = %o, want 600", configInfo.Mode().Perm())
-	}
+	testutil.AssertPrivatePath(t, configPath, 0o600)
 	trustPaths, err := filepath.Glob(filepath.Join(profileDir, "projects", "*", ".workspace-trusted"))
 	if err != nil {
 		t.Fatal(err)
@@ -247,7 +236,14 @@ func TestPreLaunchWritesIsolatedReviewerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(trustData), workspace) || !strings.Contains(string(trustData), `"aoManaged": true`) {
+	var trust struct {
+		WorkspacePath string `json:"workspacePath"`
+		AOManaged     bool   `json:"aoManaged"`
+	}
+	if err := json.Unmarshal(trustData, &trust); err != nil {
+		t.Fatal(err)
+	}
+	if trust.WorkspacePath != workspace || !trust.AOManaged {
 		t.Fatalf("reviewer trust marker = %s", trustData)
 	}
 	config := readReviewerConfig(t, configPath)

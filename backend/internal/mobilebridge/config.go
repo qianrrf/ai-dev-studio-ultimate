@@ -128,7 +128,7 @@ func writeFileAtomic(path string, b []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := replaceStateFile(tmpName, path); err != nil {
 		return err
 	}
 	// The rename on disk too, so a power loss cannot bring back the old file

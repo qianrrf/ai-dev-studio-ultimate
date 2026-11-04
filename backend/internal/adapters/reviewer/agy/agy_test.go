@@ -2,6 +2,7 @@ package agy
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 func testReviewer(help, version string) *Reviewer {
 	return &Reviewer{
-		resolveBinary: func(context.Context) (string, error) { return "/opt/agy/bin/agy", nil },
+		resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil },
 		run: func(_ context.Context, _ map[string]string, _ string, args ...string) ([]byte, error) {
 			if slices.Equal(args, []string{"--help"}) {
 				return []byte(help), nil
@@ -22,12 +23,14 @@ func testReviewer(help, version string) *Reviewer {
 	}
 }
 
+var testReviewerBinary = filepath.Join(os.TempDir(), "reviewer-fixtures", "agy")
+
 func TestReviewCommandPreflightShapeOnlyResolvesBinary(t *testing.T) {
 	spec, err := testReviewer("", "").ReviewCommand(context.Background(), ports.ReviewInvocation{WorkspacePath: "/worker"})
 	if err != nil {
 		t.Fatalf("ReviewCommand: %v", err)
 	}
-	if !slices.Equal(spec.Argv, []string{"/opt/agy/bin/agy"}) || spec.WorkingDirectory != "" || len(spec.Env) != 0 {
+	if !slices.Equal(spec.Argv, []string{testReviewerBinary}) || spec.WorkingDirectory != "" || len(spec.Env) != 0 {
 		t.Fatalf("preflight spec = %+v", spec)
 	}
 }
@@ -46,7 +49,7 @@ func TestReviewCommandLaunchesHostTrustedInteractiveTUI(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantPrompt := "Read and follow the reviewer system instructions at `/ao/prompts/worker/reviewer/system.md`, then Read and follow `/ao/task.md`."
-	want := []string{"/opt/agy/bin/agy", "--sandbox", "--add-dir", "/worker", "--add-dir", "/ao/prompts/worker/reviewer", "--prompt-interactive", wantPrompt}
+	want := []string{testReviewerBinary, "--sandbox", "--add-dir", "/worker", "--add-dir", "/ao/prompts/worker/reviewer", "--prompt-interactive", wantPrompt}
 	if !slices.Equal(spec.Argv, want) || spec.WorkingDirectory != "/worker" {
 		t.Fatalf("spec = %+v, want argv %#v", spec, want)
 	}
@@ -71,16 +74,16 @@ func TestInteractiveArgvIsPermanentTUIOnly(t *testing.T) {
 func TestCompatibilityProbeRequiresCurrentInteractiveSurface(t *testing.T) {
 	help := strings.Join(requiredFlags, "\n")
 	r := testReviewer(help, "1.1.9")
-	if err := r.verifyCompatibility(context.Background(), "/opt/agy/bin/agy", map[string]string{"HOME": "/ao/profile"}); err != nil {
+	if err := r.verifyCompatibility(context.Background(), testReviewerBinary, map[string]string{"HOME": "/ao/profile"}); err != nil {
 		t.Fatalf("verifyCompatibility: %v", err)
 	}
 
 	missing := testReviewer(strings.Replace(help, "--prompt-interactive", "", 1), "1.1.9")
-	if err := missing.verifyCompatibility(context.Background(), "/opt/agy/bin/agy", nil); err == nil || !strings.Contains(err.Error(), "--prompt-interactive") {
+	if err := missing.verifyCompatibility(context.Background(), testReviewerBinary, nil); err == nil || !strings.Contains(err.Error(), "--prompt-interactive") {
 		t.Fatalf("missing flag err = %v", err)
 	}
 	old := testReviewer(help, "1.1.5")
-	if err := old.verifyCompatibility(context.Background(), "/opt/agy/bin/agy", nil); err == nil || !strings.Contains(err.Error(), minimumVersion) {
+	if err := old.verifyCompatibility(context.Background(), testReviewerBinary, nil); err == nil || !strings.Contains(err.Error(), minimumVersion) {
 		t.Fatalf("old version err = %v", err)
 	}
 }

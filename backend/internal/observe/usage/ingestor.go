@@ -100,7 +100,7 @@ func NewIngestor(store ingestorStore, cfg IngestorConfig) *Ingestor {
 		pricing:          cfg.Pricing,
 		onPricingError:   cfg.OnPricingError,
 		requestRepair:    cfg.RequestAttributionRepair,
-		openTranscript:   os.Open,
+		openTranscript:   openTranscriptFile,
 	}
 }
 

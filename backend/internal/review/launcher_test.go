@@ -264,6 +264,12 @@ func TestLauncherSpawnPrependsNodeRuntimeForNodeShimReviewer(t *testing.T) {
 	// absolute path, and `env node` skips the daemon dir (which holds `ao`, not
 	// `node`) to reach the node dir behind it.
 	parts := strings.Split(rt.createCfg.Env["PATH"], string(os.PathListSeparator))
+	if runtime.GOOS == "windows" {
+		if len(parts) != 3 || parts[0] != filepath.Dir(exe) || parts[1] != binDir || parts[2] != emptyPath {
+			t.Fatalf("Windows runtime PATH = %q, want no Unix NVM runtime", rt.createCfg.Env["PATH"])
+		}
+		return
+	}
 	if len(parts) < 3 || parts[0] != filepath.Dir(exe) || parts[1] != binDir || parts[2] != nodeDir {
 		t.Fatalf("runtime PATH = %q, want daemon dir, reviewer bin, then node dir", rt.createCfg.Env["PATH"])
 	}

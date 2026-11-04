@@ -258,7 +258,7 @@ func (i *Identity) bindLocked(id string) error {
 }
 
 func readTrimmed(path string) (string, error) {
-	b, err := os.ReadFile(path)
+	b, err := readIdentityFile(path)
 	if os.IsNotExist(err) {
 		return "", nil
 	}

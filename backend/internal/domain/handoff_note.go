@@ -114,11 +114,12 @@ func BuildHandoffNote(in HandoffNoteInput) string {
 	older := in.Turns[max(0, len(in.Turns)-len(recent)-handoffOlderTurnLimit) : len(in.Turns)-len(recent)]
 
 	artifacts := min(len(in.Artifacts), handoffArtifactLimit)
+	changedFiles := min(len(in.ChangedFiles), handoffChangedFileLimit)
 
 	// Drop material until the whole note fits: older turns, then the last
 	// listed artifacts, then previous turns. The latest turn is never dropped.
 	for {
-		note := renderHandoffNote(in, older, recent, artifacts)
+		note := renderHandoffNote(in, older, recent, artifacts, changedFiles)
 		if handoffNoteFits(note) {
 			return note
 		}
@@ -129,6 +130,8 @@ func BuildHandoffNote(in HandoffNoteInput) string {
 			artifacts--
 		case len(recent) > 1:
 			recent = recent[1:]
+		case changedFiles > 0:
+			changedFiles--
 		default:
 			return clipHandoffNote(note)
 		}
@@ -154,7 +157,7 @@ func clipHandoffNote(note string) string {
 
 // renderHandoffNote renders the note with the given turns and the first
 // artifacts entries of in.Artifacts.
-func renderHandoffNote(in HandoffNoteInput, older, recent []HandoffTurn, artifacts int) string {
+func renderHandoffNote(in HandoffNoteInput, older, recent []HandoffTurn, artifacts, changedFiles int) string {
 	var b strings.Builder
 	if in.SwitchID != "" {
 		fmt.Fprintf(&b, "%s switch-id=%q>\n", HandoffNotePrefix, in.SwitchID)
@@ -185,12 +188,11 @@ func renderHandoffNote(in HandoffNoteInput, older, recent []HandoffTurn, artifac
 
 	if len(in.ChangedFiles) > 0 {
 		fmt.Fprintf(&b, "\n## Workspace state\nFiles changed since the session started (%d):\n", len(in.ChangedFiles))
-		for index, name := range in.ChangedFiles {
-			if index == handoffChangedFileLimit {
-				fmt.Fprintf(&b, "(and %d more)\n", len(in.ChangedFiles)-handoffChangedFileLimit)
-				break
-			}
+		for _, name := range in.ChangedFiles[:changedFiles] {
 			fmt.Fprintf(&b, "- %s\n", quoteHandoffLine(name, handoffChangedFileCap))
+		}
+		if hidden := len(in.ChangedFiles) - changedFiles; hidden > 0 {
+			fmt.Fprintf(&b, "(and %d more)\n", hidden)
 		}
 	}
 

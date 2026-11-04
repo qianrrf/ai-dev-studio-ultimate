@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -311,6 +312,10 @@ func ensureAgentBinary(t *testing.T, name string) {
 		version = "0.10.0"
 	}
 	script := "#!/usr/bin/env sh\nif [ \"${1:-}\" = \"--version\" ]; then\n  echo \"" + name + " " + version + "\"\nfi\nexit 0\n"
+	if runtime.GOOS == "windows" {
+		binPath += ".cmd"
+		script = "@echo off\r\nif \"%~1\"==\"--version\" echo " + name + " " + version + "\r\nexit /b 0\r\n"
+	}
 	if err := os.WriteFile(binPath, []byte(script), 0755); err != nil {
 		t.Fatalf("write fake agent binary %q: %v", binPath, err)
 	}

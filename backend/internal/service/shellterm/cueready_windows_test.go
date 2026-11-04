@@ -129,8 +129,8 @@ func TestCueCommandWindowsPayloadDirectoryIsPrivate(t *testing.T) {
 		if err != nil || dacl == nil {
 			t.Fatalf("missing payload DACL: %v", err)
 		}
-		token, err := windows.OpenCurrentProcessToken()
-		if err != nil {
+		var token windows.Token
+		if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 			t.Fatal(err)
 		}
 		user, err := token.GetTokenUser()

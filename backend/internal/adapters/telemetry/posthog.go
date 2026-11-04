@@ -909,7 +909,7 @@ func versionChannel(appVersion string) string {
 func loadOrCreateInstallID(dataDir string) (string, error) {
 	path := filepath.Join(dataDir, installIDFile)
 	for range 5 {
-		b, err := os.ReadFile(path)
+		b, err := readIdentityFile(path)
 		if err == nil {
 			if id := strings.TrimSpace(string(b)); id != "" {
 				return id, nil
@@ -976,7 +976,7 @@ func recoverEmptyInstallID(dataDir, path string) (string, error) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	defer func() { _ = os.Remove(lockPath) }()
-	b, err := os.ReadFile(path)
+	b, err := readIdentityFile(path)
 	if err == nil {
 		if id := strings.TrimSpace(string(b)); id != "" {
 			return id, nil

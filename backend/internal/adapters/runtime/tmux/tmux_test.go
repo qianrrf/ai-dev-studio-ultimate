@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -138,7 +139,11 @@ func TestNewUsesAppOwnedTmuxSocketFromEnv(t *testing.T) {
 
 func TestNewUsesSystemTmuxForLegacyDefaultSocket(t *testing.T) {
 	binDir := t.TempDir()
-	systemTmux := filepath.Join(binDir, "tmux")
+	name := "tmux"
+	if runtime.GOOS == "windows" {
+		name += ".cmd"
+	}
+	systemTmux := filepath.Join(binDir, name)
 	if err := os.WriteFile(systemTmux, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +189,7 @@ func TestNewLeavesLegacyTmuxUnavailableWithoutSystemTmux(t *testing.T) {
 // execRunner (not the fakeRunner test seam every other test in this file
 // uses), so it is the only test that would catch a regression here.
 func TestExecRunnerRunsFromStableDir(t *testing.T) {
-	out, err := (execRunner{}).Run(context.Background(), nil, "sh", "-c", "pwd")
+	out, err := runWorkingDirectoryProbe(t)
 	if err != nil {
 		t.Fatalf("execRunner.Run: %v", err)
 	}
@@ -213,12 +218,17 @@ func TestExecRunnerRunsFromStableDir(t *testing.T) {
 // with "chdir <dir>: no such file or directory" — the same dead-cwd failure
 // #2775 was about, just moved. Run must degrade to a directory that exists.
 func TestExecRunnerFallsBackWhenTempDirMissing(t *testing.T) {
-	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "deleted-by-an-update"))
+	missing := filepath.Join(t.TempDir(), "deleted-by-an-update")
+	t.Setenv("TMPDIR", missing)
+	if runtime.GOOS == "windows" {
+		t.Setenv("TMP", missing)
+		t.Setenv("TEMP", missing)
+	}
 	if _, err := os.Stat(os.TempDir()); !os.IsNotExist(err) {
 		t.Fatalf("precondition: os.TempDir() %q should not exist, stat err = %v", os.TempDir(), err)
 	}
 
-	out, err := (execRunner{}).Run(context.Background(), nil, "sh", "-c", "pwd")
+	out, err := runWorkingDirectoryProbe(t)
 	if err != nil {
 		t.Fatalf("execRunner.Run with a missing TMPDIR: %v", err)
 	}
@@ -226,6 +236,14 @@ func TestExecRunnerFallsBackWhenTempDirMissing(t *testing.T) {
 	if info, err := os.Stat(got); err != nil || !info.IsDir() {
 		t.Fatalf("execRunner ran from %q, want an existing directory (stat err = %v)", got, err)
 	}
+}
+
+func runWorkingDirectoryProbe(t *testing.T) ([]byte, error) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		return (execRunner{}).Run(t.Context(), nil, "cmd.exe", "/d", "/c", "cd")
+	}
+	return (execRunner{}).Run(t.Context(), nil, "sh", "-c", "pwd")
 }
 
 // -- command builder tests --

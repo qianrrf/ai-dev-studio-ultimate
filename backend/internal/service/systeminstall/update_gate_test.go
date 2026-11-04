@@ -140,6 +140,7 @@ func TestUpdatePlansCarryTheirLevel(t *testing.T) {
 func updateWhileRunningService(t *testing.T, sessions []domain.SessionRecord) (*Service, *[]ports.InstallCommand) {
 	t.Helper()
 	s := newTestService("darwin", "bash", "brew", "npm")
+	cellar := filepath.Join(t.TempDir(), "Cellar")
 	baseCommands := s.commands
 	s.commands = commandRunnerFunc(func(ctx context.Context, argv []string, out, stderr io.Writer) error {
 		if argv[0] == "ps" {
@@ -147,7 +148,7 @@ func updateWhileRunningService(t *testing.T, sessions []domain.SessionRecord) (*
 			return err
 		}
 		if len(argv) == 3 && argv[0] == "brew" && argv[1] == "--cellar" {
-			_, err := io.WriteString(out, "/opt/homebrew/Cellar/"+argv[2]+"\n")
+			_, err := io.WriteString(out, filepath.Join(cellar, argv[2])+"\n")
 			return err
 		}
 		return baseCommands.Run(ctx, argv, out, stderr)
@@ -155,7 +156,7 @@ func updateWhileRunningService(t *testing.T, sessions []domain.SessionRecord) (*
 	s.sessions = sessionListerStub{sessions: sessions}
 	version := "1.2.0"
 	s.verifier = harnessVerifierFunc(func(context.Context, Target) (VerifyResult, error) {
-		return VerifyResult{ResolvedPath: "/opt/homebrew/Cellar/kimi-code/1.2.0/bin/kimi", Output: version}, nil
+		return VerifyResult{ResolvedPath: filepath.Join(cellar, "kimi-code", "1.2.0", "bin", "kimi"), Output: version}, nil
 	})
 	s.ownsInstallation = func(context.Context, string, string, string, bool) (bool, error) { return true, nil }
 	var mu sync.Mutex

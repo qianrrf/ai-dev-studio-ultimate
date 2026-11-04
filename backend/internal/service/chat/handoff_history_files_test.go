@@ -3,8 +3,10 @@ package chat
 import (
 	"crypto/md5" //nolint:gosec // matches Cursor's folder naming.
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +17,13 @@ import (
 func TestHandoffHistoryFilesPointAtAgentsAOHasNoAnswersFor(t *testing.T) {
 	home, data := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
-	workspace := filepath.Join(home, "worktrees", "scratch-1")
+	t.Setenv("USERPROFILE", home)
+	// The workspace is only an index key; a UNC key is also a valid Windows
+	// absolute path without assuming a vendor encoding for drive colons.
+	workspace := "/worktrees/scratch-1"
+	if runtime.GOOS == "windows" {
+		workspace = `\\example.invalid\worktrees\scratch-1`
+	}
 	write := func(path, content string) {
 		t.Helper()
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -27,12 +35,20 @@ func TestHandoffHistoryFilesPointAtAgentsAOHasNoAnswersFor(t *testing.T) {
 	}
 	kimiDir := filepath.Join(data, "kimi", "sessions", "wd_scratch-1_x", "session_a")
 	write(filepath.Join(kimiDir, "agents", "main", "wire.jsonl"), "{}\n")
+	indexEntry := func(entry map[string]any) string {
+		t.Helper()
+		raw, err := json.Marshal(entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw) + "\n"
+	}
 	write(filepath.Join(data, "kimi", "session_index.jsonl"),
-		`{"sessionId":"session_gone","sessionDir":"`+filepath.Join(data, "kimi", "gone")+`","workDir":"`+workspace+`"}`+"\n"+
-			`{"sessionId":"session_gone","deleted":true}`+"\n"+
-			`{"sessionId":"session_a","sessionDir":"`+kimiDir+`","workDir":"`+workspace+`"}`+"\n"+
-			`{"sessionId":"session_b","sessionDir":"`+filepath.Join(data, "other")+`","workDir":"/elsewhere"}`+"\n")
-	write(filepath.Join(home, ".factory", "sessions", strings.ReplaceAll(workspace, "/", "-"), "d1.jsonl"), "{}\n")
+		indexEntry(map[string]any{"sessionId": "session_gone", "sessionDir": filepath.Join(data, "kimi", "gone"), "workDir": workspace})+
+			indexEntry(map[string]any{"sessionId": "session_gone", "deleted": true})+
+			indexEntry(map[string]any{"sessionId": "session_a", "sessionDir": kimiDir, "workDir": workspace})+
+			indexEntry(map[string]any{"sessionId": "session_b", "sessionDir": filepath.Join(data, "other"), "workDir": "/elsewhere"}))
+	write(filepath.Join(home, ".factory", "sessions", strings.ReplaceAll(workspace, string(filepath.Separator), "-"), "d1.jsonl"), "{}\n")
 	key := md5.Sum([]byte(workspace)) //nolint:gosec // matches Cursor's folder naming.
 	write(filepath.Join(home, ".cursor", "chats", hex.EncodeToString(key[:]), "c1", "store.db"), "db")
 
@@ -62,8 +78,14 @@ func TestHandoffHistoryFilesPointAtAgentsAOHasNoAnswersFor(t *testing.T) {
 func TestHandoffHistoryFilesSkipChatsOlderThanTheSession(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	workspace := filepath.Join(home, "worktrees", "scratch-1")
-	old := filepath.Join(home, ".factory", "sessions", strings.ReplaceAll(workspace, "/", "-"), "old.jsonl")
+	t.Setenv("USERPROFILE", home)
+	// The workspace is only an index key; a UNC key is also a valid Windows
+	// absolute path without assuming a vendor encoding for drive colons.
+	workspace := "/worktrees/scratch-1"
+	if runtime.GOOS == "windows" {
+		workspace = `\\example.invalid\worktrees\scratch-1`
+	}
+	old := filepath.Join(home, ".factory", "sessions", strings.ReplaceAll(workspace, string(filepath.Separator), "-"), "old.jsonl")
 	if err := os.MkdirAll(filepath.Dir(old), 0o750); err != nil {
 		t.Fatal(err)
 	}

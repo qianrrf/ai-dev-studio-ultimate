@@ -52,7 +52,7 @@ func ReadSystem() (System, error) {
 
 	var mem memoryStatusEx
 	mem.length = uint32(unsafe.Sizeof(mem))
-	ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&mem)))
+	ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&mem))) // #nosec G103 -- Synchronous Win32 call receives MEMORYSTATUSEX with its exact byte length.
 	if ret == 0 {
 		return System{}, fmt.Errorf("procmem: GlobalMemoryStatusEx failed")
 	}
@@ -68,7 +68,7 @@ func ReadSystem() (System, error) {
 	// rather than a fabricated number; SwapPages is deliberately left at 0.
 
 	var idle, kernel, user windows.Filetime
-	ret, _, _ = procGetSystemTimes.Call(uintptr(unsafe.Pointer(&idle)), uintptr(unsafe.Pointer(&kernel)), uintptr(unsafe.Pointer(&user)))
+	ret, _, _ = procGetSystemTimes.Call(uintptr(unsafe.Pointer(&idle)), uintptr(unsafe.Pointer(&kernel)), uintptr(unsafe.Pointer(&user))) // #nosec G103 -- Synchronous Win32 call writes three correctly sized FILETIME stack buffers.
 	if ret != 0 {
 		// Kernel time already includes idle time on Windows, so total is
 		// kernel+user and busy is total minus idle — the standard formula

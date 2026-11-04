@@ -934,6 +934,20 @@ func (m *Manager) nativeConversationNotStarted(
 		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
 			return false
 		}
+		// Windows reports PATH_NOT_FOUND for a child of a regular file too.
+		// Prove the nearest existing parent is a directory before discarding history.
+		for parent := filepath.Dir(path); ; parent = filepath.Dir(parent) {
+			info, err := os.Lstat(parent)
+			if err == nil {
+				if !info.IsDir() {
+					return false
+				}
+				break
+			}
+			if !errors.Is(err, os.ErrNotExist) || filepath.Dir(parent) == parent {
+				return false
+			}
+		}
 	}
 	if domain.NormalizeSessionMode(rec.Mode) == domain.SessionModeChat {
 		if rec.Metadata.Prompt != "" {

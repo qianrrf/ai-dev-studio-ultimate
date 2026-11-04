@@ -495,6 +495,19 @@ func TestSend_NoEnterNudgeAfterTheOperatorTypes(t *testing.T) {
 	}
 }
 
+func TestConfirmActiveDoesNotNudgeAtInputBaseline(t *testing.T) {
+	m, msg := composerSendTestManager(t, idleTerminalOutput)
+	m.agents = singleAgent{agent: nudgeSafeSurfaceAgent{}}
+	baseline := time.Now()
+	m.SetTerminalInputGate(&recordingInputGate{lastInputAt: baseline})
+	if err := m.confirmActive(t.Context(), m.messenger, "s1", deliveryEvidence{}, baseline); !errors.Is(err, ErrDeliveryUnconfirmed) {
+		t.Fatalf("confirm error = %v, want ErrDeliveryUnconfirmed", err)
+	}
+	if len(msg.msgs) != 0 {
+		t.Fatalf("sent %d Enter nudges at the same clock tick as operator input", len(msg.msgs))
+	}
+}
+
 func TestSend_EnterNudgeStillRunsWhenNobodyTyped(t *testing.T) {
 	m, msg := composerSendTestManager(t, idleTerminalOutput)
 	m.agents = singleAgent{agent: nudgeSafeSurfaceAgent{}}

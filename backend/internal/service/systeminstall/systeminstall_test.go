@@ -1660,10 +1660,12 @@ func TestAutohandWindowsInstallerVerifiesCLIAfterComputerControlFailure(t *testi
 }
 
 func TestKimiUpdateReinstallsAdvisoryReleaseIntoConfirmedDirectory(t *testing.T) {
-	home := t.TempDir()
+	// This service simulates macOS; all installer and verifier I/O is fake.
+	home := "/Users/fixture"
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
-	t.Setenv("PATH", "/usr/bin:"+home+"/.kimi-code/bin:/bin")
+	systemDirs := []string{"/usr/bin", "/bin"}
+	t.Setenv("PATH", strings.Join([]string{systemDirs[0], home + "/.kimi-code/bin", systemDirs[1]}, ":"))
 	binary := home + "/.kimi-code/bin/kimi"
 	s := newTestService("darwin", "bash")
 	t.Cleanup(s.stop)
@@ -1691,7 +1693,7 @@ func TestKimiUpdateReinstallsAdvisoryReleaseIntoConfirmedDirectory(t *testing.T)
 	if command.URL != "https://code.kimi.com/kimi-code/install.sh" {
 		t.Fatalf("installer = %s", command.URL)
 	}
-	for _, want := range []string{"KIMI_INSTALL_DIR=" + home + "/.kimi-code", "KIMI_NO_MODIFY_PATH=1", "KIMI_VERSION=2.2.0", "PATH=/usr/bin:/bin"} {
+	for _, want := range []string{"KIMI_INSTALL_DIR=" + home + "/.kimi-code", "KIMI_NO_MODIFY_PATH=1", "KIMI_VERSION=2.2.0", "PATH=" + strings.Join(systemDirs, ":")} {
 		if !slices.Contains(command.Env, want) {
 			t.Fatalf("installer environment = %v, want %q", command.Env, want)
 		}

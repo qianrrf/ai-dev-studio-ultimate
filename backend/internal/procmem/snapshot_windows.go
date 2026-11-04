@@ -37,7 +37,7 @@ type processMemoryCounters struct {
 func getProcessMemoryInfo(h windows.Handle) (workingSetSize uint64, ok bool) {
 	var counters processMemoryCounters
 	counters.cb = uint32(unsafe.Sizeof(counters))
-	ret, _, _ := procGetProcessMemoryInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&counters)), uintptr(counters.cb))
+	ret, _, _ := procGetProcessMemoryInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&counters)), uintptr(counters.cb)) // #nosec G103 -- Synchronous Win32 call writes the stack buffer whose exact size is passed.
 	if ret == 0 {
 		return 0, false
 	}
@@ -74,7 +74,7 @@ func Snapshot(ctx context.Context, run Runner) (*Table, error) {
 		// tolerance the ps-based path already has for a row that vanishes
 		// mid-parse. PROCESS_QUERY_LIMITED_INFORMATION is the version of this
 		// handle that does not need administrator rights.
-		if h, openErr := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid)); openErr == nil {
+		if h, openErr := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID); openErr == nil {
 			if rss, ok := getProcessMemoryInfo(h); ok {
 				p.RSSBytes = rss
 			}

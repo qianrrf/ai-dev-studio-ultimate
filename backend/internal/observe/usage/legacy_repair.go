@@ -221,7 +221,7 @@ func (r *LegacyRepairer) repairSource(ctx context.Context, source domain.UsageSo
 	if !replayCanImprove(source, candidates) {
 		return nil
 	}
-	file, err := os.Open(source.Source.ArtifactPath) //nolint:gosec // registered transcript path.
+	file, err := openTranscriptFile(source.Source.ArtifactPath) //nolint:gosec // registered transcript path.
 	if err != nil {
 		return nil
 	}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -337,6 +338,9 @@ func TestUninstallHooksRemovesOnlyAOHooks(t *testing.T) {
 func TestResolveBinaryFindsCommandCodeOnPath(t *testing.T) {
 	dir := t.TempDir()
 	binPath := filepath.Join(dir, "command-code")
+	if runtime.GOOS == "windows" {
+		binPath += ".cmd"
+	}
 	if err := os.WriteFile(binPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 		t.Fatalf("write fake binary: %v", err)
 	}

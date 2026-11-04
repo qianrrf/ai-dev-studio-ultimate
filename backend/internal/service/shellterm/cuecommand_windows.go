@@ -9,11 +9,11 @@ import (
 )
 
 func newCueCommandDirectory(root string) (string, error) {
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return "", err
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		return "", err

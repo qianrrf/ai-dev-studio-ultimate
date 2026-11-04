@@ -54,6 +54,11 @@ func (*Service) List(ctx context.Context, path string) (Listing, error) {
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
+		// Windows may report ERROR_PATH_NOT_FOUND when opening a regular file
+		// as a directory. Preserve the API distinction from a missing path.
+		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
+			return Listing{}, apierr.Invalid("FS_NOT_A_DIRECTORY", "not a directory", nil)
+		}
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			return Listing{}, apierr.NotFound("FS_NOT_FOUND", "no such directory on the daemon host")

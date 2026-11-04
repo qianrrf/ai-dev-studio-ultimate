@@ -15,6 +15,7 @@ func TestAiderConfiguredProvidersLayersEnvDotenvAndConfig(t *testing.T) {
 	home := t.TempDir()
 	workspace := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	for _, sets := range aiderProviderKeys {
 		for _, set := range sets {
 			for _, name := range set {
@@ -66,6 +67,7 @@ func TestAiderConfiguredProvidersLayersEnvDotenvAndConfig(t *testing.T) {
 
 func TestAiderConfiguredProvidersNeedsEveryPartOfACredential(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
 	for _, sets := range aiderProviderKeys {
 		for _, set := range sets {
 			for _, name := range set {

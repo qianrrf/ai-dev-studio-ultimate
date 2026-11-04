@@ -11,8 +11,7 @@ import (
 
 func TestPrepareLoginTerminalForCommitClosesExitedWindowsHost(t *testing.T) {
 	terminal := &fakeCodexLoginTerminal{
-		childExited: true,
-		result:      shellterm.ShellTerminal{HandleID: "shellterm-login"},
+		result: shellterm.ShellTerminal{HandleID: "shellterm-login"},
 	}
 	manager := &codexAccountManager{terminal: terminal}
 	if err := manager.prepareLoginTerminalForCommit(context.Background(), terminal.result.HandleID); err != nil {
@@ -26,7 +25,7 @@ func TestPrepareLoginTerminalForCommitClosesExitedWindowsHost(t *testing.T) {
 }
 
 func TestPrepareLoginTerminalForCommitKeepsRunningWindowsHost(t *testing.T) {
-	terminal := &fakeCodexLoginTerminal{result: shellterm.ShellTerminal{HandleID: "shellterm-login"}}
+	terminal := &fakeCodexLoginTerminal{childRunning: true, result: shellterm.ShellTerminal{HandleID: "shellterm-login"}}
 	manager := &codexAccountManager{terminal: terminal}
 	if err := manager.prepareLoginTerminalForCommit(context.Background(), terminal.result.HandleID); err == nil {
 		t.Fatal("running login command was closed for commit")

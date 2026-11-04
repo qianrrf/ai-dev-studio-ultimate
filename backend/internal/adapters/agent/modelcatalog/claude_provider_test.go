@@ -19,6 +19,7 @@ func claudeRequest(t *testing.T) ports.AgentModelDiscoveryRequest {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, ".claude"))
 	t.Setenv("ANTHROPIC_MODEL", "")
 	return ports.AgentModelDiscoveryRequest{

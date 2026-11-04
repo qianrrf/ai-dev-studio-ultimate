@@ -5394,7 +5394,9 @@ func (m *Manager) confirmActive(ctx context.Context, guard *sessionguard.Guard, 
 				lastInputAt = m.lastTerminalInputAt(rec)
 			}
 			accepted = evidence.accepted(rec)
-			return lastInputAt.After(inputBaseline), release
+			// Windows clock resolution can give a later keystroke the same
+			// timestamp as delivery. Treat equality conservatively as new input.
+			return !lastInputAt.IsZero() && !lastInputAt.Before(inputBaseline), release
 		}, nil)
 		if err == nil && outcome == sessionguard.SuppressedComposerBusy {
 			if accepted {

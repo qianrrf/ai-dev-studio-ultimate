@@ -12,19 +12,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type codexWindowsACLHeader struct {
-	revision byte
-	padding  byte
-	size     uint16
-	count    uint16
-	padding2 uint16
-}
-
-type codexWindowsACEPrefix struct {
-	header windows.ACE_HEADER
-	mask   windows.ACCESS_MASK
-}
-
 const (
 	codexWindowsAccessDeniedObjectACEType         uint8 = 0x06
 	codexWindowsAccessDeniedCallbackACEType       uint8 = 0x0a
@@ -42,11 +29,11 @@ const (
 func codexPrivateFileMode(os.FileInfo) bool { return true }
 
 func openCodexFileNoFollow(path string) (*os.File, error) {
-	handle, info, ownerCurrent, _, aclSafe, err := openCodexWindowsPath(path, false, true)
+	handle, info, security, err := openCodexWindowsPath(path, false, true)
 	if err != nil {
 		return nil, err
 	}
-	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, ownerCurrent, aclSafe), false, true) {
+	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, security.ownerCurrent, security.aclSafe), false, true) {
 		_ = windows.CloseHandle(handle)
 		return nil, errors.New("codex file handle is unsafe")
 	}
@@ -54,7 +41,7 @@ func openCodexFileNoFollow(path string) (*os.File, error) {
 }
 
 func openCodexDeviceFileNoFollow(path string) (*os.File, error) {
-	handle, info, _, ownerTrusted, aclSafe, err := openCodexWindowsPathWithSecurity(
+	handle, info, security, err := openCodexWindowsPathWithSecurity(
 		path,
 		false,
 		windows.GENERIC_READ|windows.READ_CONTROL,
@@ -63,17 +50,17 @@ func openCodexDeviceFileNoFollow(path string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, ownerTrusted, true), false, true) {
+	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, security.ownerTrusted, true), false, true) {
 		_ = windows.CloseHandle(handle)
-		return nil, errors.New("Codex device credential handle is unsafe")
+		return nil, errors.New("codex device credential handle is unsafe")
 	}
-	if !aclSafe {
+	if !security.aclSafe {
 		repairable, repairErr := codexWindowsHandleDeviceCredentialRepairable(handle)
 		if repairErr != nil || !repairable {
 			_ = windows.CloseHandle(handle)
-			return nil, errors.New("Codex device credential ACL is unsafe")
+			return nil, errors.New("codex device credential ACL is unsafe")
 		}
-		repairHandle, repairInfo, repairOwnerCurrent, repairOwnerTrusted, _, repairErr := openCodexWindowsPathWithSecurityAndShare(
+		repairHandle, repairInfo, repairSecurity, repairErr := openCodexWindowsPathWithSecurityAndShare(
 			path,
 			false,
 			windows.GENERIC_READ|windows.READ_CONTROL|windows.WRITE_DAC,
@@ -84,11 +71,11 @@ func openCodexDeviceFileNoFollow(path string) (*os.File, error) {
 			_ = windows.CloseHandle(handle)
 			return nil, repairErr
 		}
-		if !repairOwnerCurrent || !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(repairInfo, repairOwnerTrusted, true), false, true) ||
+		if !repairSecurity.ownerCurrent || !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(repairInfo, repairSecurity.ownerTrusted, true), false, true) ||
 			!codexWindowsSameStableIdentity(codexWindowsMetadata(info, true, true), codexWindowsMetadata(repairInfo, true, true)) {
 			_ = windows.CloseHandle(repairHandle)
 			_ = windows.CloseHandle(handle)
-			return nil, errors.New("Codex device credential changed before ACL repair")
+			return nil, errors.New("codex device credential changed before ACL repair")
 		}
 		if repairErr := setCodexWindowsDeviceCredentialDACL(repairHandle); repairErr != nil {
 			_ = windows.CloseHandle(repairHandle)
@@ -102,12 +89,12 @@ func openCodexDeviceFileNoFollow(path string) (*os.File, error) {
 }
 
 func validateCodexDirectory(path string, requirePrivate bool) error {
-	handle, info, ownerCurrent, _, aclSafe, err := openCodexWindowsPath(path, true, requirePrivate)
+	handle, info, security, err := openCodexWindowsPath(path, true, requirePrivate)
 	if err != nil {
 		return errors.New("codex directory is unsafe")
 	}
 	_ = windows.CloseHandle(handle)
-	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, ownerCurrent, aclSafe), true, false) {
+	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, security.ownerCurrent, security.aclSafe), true, false) {
 		return errors.New("codex directory owner or ACL is unsafe")
 	}
 	return validateCodexDirectoryAncestors(path)
@@ -133,12 +120,12 @@ func validateCodexDirectoryAncestors(path string) error {
 		if attrErr != nil || attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 || attributes&windows.FILE_ATTRIBUTE_DIRECTORY == 0 {
 			return errors.New("codex directory has an unsafe ancestor")
 		}
-		handle, info, _, ownerTrusted, aclSafe, openErr := openCodexWindowsPath(current, true, false)
+		handle, info, security, openErr := openCodexWindowsPath(current, true, false)
 		if openErr != nil {
 			return errors.New("codex directory ancestor could not be verified")
 		}
 		_ = windows.CloseHandle(handle)
-		if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, ownerTrusted, aclSafe), true, false) {
+		if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, security.ownerTrusted, security.aclSafe), true, false) {
 			return errors.New("codex directory ancestor ACL is unsafe")
 		}
 		if parent := filepath.Dir(current); parent == current {
@@ -147,11 +134,17 @@ func validateCodexDirectoryAncestors(path string) error {
 	}
 }
 
-func openCodexWindowsPath(path string, directory, requirePrivate bool) (windows.Handle, windows.ByHandleFileInformation, bool, bool, bool, error) {
+type codexWindowsSecurity struct {
+	ownerCurrent bool
+	ownerTrusted bool
+	aclSafe      bool
+}
+
+func openCodexWindowsPath(path string, directory, requirePrivate bool) (windows.Handle, windows.ByHandleFileInformation, codexWindowsSecurity, error) {
 	return openCodexWindowsPathWithAccess(path, directory, windows.GENERIC_READ|windows.READ_CONTROL, requirePrivate)
 }
 
-func openCodexWindowsPathWithAccess(path string, directory bool, access uint32, requirePrivate bool) (windows.Handle, windows.ByHandleFileInformation, bool, bool, bool, error) {
+func openCodexWindowsPathWithAccess(path string, directory bool, access uint32, requirePrivate bool) (windows.Handle, windows.ByHandleFileInformation, codexWindowsSecurity, error) {
 	policy := codexWindowsACLPolicyAncestor
 	if requirePrivate {
 		policy = codexWindowsACLPolicyPrivate
@@ -159,7 +152,7 @@ func openCodexWindowsPathWithAccess(path string, directory bool, access uint32, 
 	return openCodexWindowsPathWithSecurity(path, directory, access, policy)
 }
 
-func openCodexWindowsPathWithSecurity(path string, directory bool, access uint32, policy codexWindowsACLPolicy) (windows.Handle, windows.ByHandleFileInformation, bool, bool, bool, error) {
+func openCodexWindowsPathWithSecurity(path string, directory bool, access uint32, policy codexWindowsACLPolicy) (windows.Handle, windows.ByHandleFileInformation, codexWindowsSecurity, error) {
 	return openCodexWindowsPathWithSecurityAndShare(
 		path,
 		directory,
@@ -169,10 +162,10 @@ func openCodexWindowsPathWithSecurity(path string, directory bool, access uint32
 	)
 }
 
-func openCodexWindowsPathWithSecurityAndShare(path string, directory bool, access uint32, policy codexWindowsACLPolicy, shareMode uint32) (windows.Handle, windows.ByHandleFileInformation, bool, bool, bool, error) {
+func openCodexWindowsPathWithSecurityAndShare(path string, directory bool, access uint32, policy codexWindowsACLPolicy, shareMode uint32) (windows.Handle, windows.ByHandleFileInformation, codexWindowsSecurity, error) {
 	ptr, err := windows.UTF16PtrFromString(path)
 	if err != nil {
-		return windows.InvalidHandle, windows.ByHandleFileInformation{}, false, false, false, err
+		return windows.InvalidHandle, windows.ByHandleFileInformation{}, codexWindowsSecurity{}, err
 	}
 	handle, err := windows.CreateFile(
 		ptr,
@@ -184,11 +177,11 @@ func openCodexWindowsPathWithSecurityAndShare(path string, directory bool, acces
 		0,
 	)
 	if err != nil {
-		return windows.InvalidHandle, windows.ByHandleFileInformation{}, false, false, false, err
+		return windows.InvalidHandle, windows.ByHandleFileInformation{}, codexWindowsSecurity{}, err
 	}
-	fail := func(err error) (windows.Handle, windows.ByHandleFileInformation, bool, bool, bool, error) {
+	fail := func(err error) (windows.Handle, windows.ByHandleFileInformation, codexWindowsSecurity, error) {
 		_ = windows.CloseHandle(handle)
-		return windows.InvalidHandle, windows.ByHandleFileInformation{}, false, false, false, err
+		return windows.InvalidHandle, windows.ByHandleFileInformation{}, codexWindowsSecurity{}, err
 	}
 	var info windows.ByHandleFileInformation
 	if err := windows.GetFileInformationByHandle(handle, &info); err != nil {
@@ -201,7 +194,7 @@ func openCodexWindowsPathWithSecurityAndShare(path string, directory bool, acces
 	if err != nil {
 		return fail(err)
 	}
-	return handle, info, ownerCurrent, ownerTrusted, aclSafe, nil
+	return handle, info, codexWindowsSecurity{ownerCurrent: ownerCurrent, ownerTrusted: ownerTrusted, aclSafe: aclSafe}, nil
 }
 
 func codexWindowsMetadata(info windows.ByHandleFileInformation, ownerTrusted, aclSafe bool) codexWindowsPathMetadata {
@@ -243,11 +236,11 @@ func codexWindowsHandleDeviceCredentialRepairable(handle windows.Handle) (bool, 
 }
 
 func codexWindowsHandleSecurityState(handle windows.Handle, classifyDevicePrincipals bool) (bool, bool, []codexWindowsACE, error) {
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return false, false, nil, err
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		return false, false, nil, err
@@ -297,21 +290,21 @@ func codexWindowsDACLACEs(
 	user, system, administrators, trustedInstaller, sandbox *windows.SID,
 	classifyDevicePrincipals bool,
 ) ([]codexWindowsACE, error) {
-	header := (*codexWindowsACLHeader)(unsafe.Pointer(dacl))
-	aces := make([]codexWindowsACE, 0, header.count)
-	for index := uint32(0); index < uint32(header.count); index++ {
+
+	aces := make([]codexWindowsACE, 0, dacl.AceCount)
+	for index := uint32(0); index < uint32(dacl.AceCount); index++ {
 		var raw *windows.ACCESS_ALLOWED_ACE
 		if err := windows.GetAce(dacl, index, &raw); err != nil || raw == nil {
 			return nil, errors.New("codex path ACL is unreadable")
 		}
-		prefix := (*codexWindowsACEPrefix)(unsafe.Pointer(raw))
-		if prefix.header.AceFlags&windows.INHERIT_ONLY_ACE != 0 {
+
+		if raw.Header.AceFlags&windows.INHERIT_ONLY_ACE != 0 {
 			continue
 		}
-		switch prefix.header.AceType {
+		switch raw.Header.AceType {
 		case windows.ACCESS_ALLOWED_ACE_TYPE:
-			ace := codexWindowsACE{Allowed: true, Mask: uint32(prefix.mask)}
-			sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart))
+			ace := codexWindowsACE{Allowed: true, Mask: uint32(raw.Mask)}
+			sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart)) // #nosec G103 -- GetAce returns the Windows ACCESS_ALLOWED_ACE layout; SID validity is checked below.
 			if !sid.IsValid() {
 				return nil, errors.New("codex path ACL contains an invalid allow ACE")
 			}
@@ -351,8 +344,9 @@ func codexWindowsTrustedInstallerSID() (*windows.SID, error) {
 }
 
 func codexWindowsLocalSandboxSID() (*windows.SID, error) {
-	nameBuffer := make([]uint16, 256)
-	nameLength := uint32(len(nameBuffer))
+	const capacity = 256
+	nameBuffer := make([]uint16, capacity)
+	nameLength := uint32(capacity)
 	if err := windows.GetComputerNameEx(windows.ComputerNameNetBIOS, &nameBuffer[0], &nameLength); err != nil || nameLength == 0 {
 		return nil, errors.New("local computer name is unavailable")
 	}
@@ -368,7 +362,7 @@ func codexWindowsLocalSandboxSID() (*windows.SID, error) {
 }
 
 func protectCodexPrivateDirectory(path string) error {
-	handle, _, ownerCurrent, _, _, err := openCodexWindowsPathWithAccess(
+	handle, _, security, err := openCodexWindowsPathWithAccess(
 		path,
 		true,
 		windows.WRITE_DAC|windows.READ_CONTROL,
@@ -377,8 +371,8 @@ func protectCodexPrivateDirectory(path string) error {
 	if err != nil {
 		return err
 	}
-	defer windows.CloseHandle(handle)
-	if !ownerCurrent {
+	defer func() { _ = windows.CloseHandle(handle) }()
+	if !security.ownerCurrent {
 		return errors.New("codex private directory owner is unsafe")
 	}
 	return setCodexWindowsPrivateDACL(handle, true)
@@ -392,7 +386,7 @@ func protectCodexPrivateFile(path string, file *os.File) error {
 	if err := windows.GetFileInformationByHandle(windows.Handle(file.Fd()), &original); err != nil {
 		return err
 	}
-	handle, opened, ownerCurrent, _, _, err := openCodexWindowsPathWithAccess(
+	handle, opened, security, err := openCodexWindowsPathWithAccess(
 		path,
 		false,
 		windows.WRITE_DAC|windows.READ_CONTROL,
@@ -401,8 +395,8 @@ func protectCodexPrivateFile(path string, file *os.File) error {
 	if err != nil {
 		return err
 	}
-	defer windows.CloseHandle(handle)
-	if !ownerCurrent || !codexWindowsSameStableIdentity(
+	defer func() { _ = windows.CloseHandle(handle) }()
+	if !security.ownerCurrent || !codexWindowsSameStableIdentity(
 		codexWindowsMetadata(original, true, true),
 		codexWindowsMetadata(opened, true, true),
 	) {
@@ -412,7 +406,7 @@ func protectCodexPrivateFile(path string, file *os.File) error {
 }
 
 func protectCodexDeviceCredentialFile(path string) error {
-	handle, _, ownerCurrent, _, _, err := openCodexWindowsPathWithSecurity(
+	handle, _, security, err := openCodexWindowsPathWithSecurity(
 		path,
 		false,
 		windows.WRITE_DAC|windows.READ_CONTROL,
@@ -421,19 +415,19 @@ func protectCodexDeviceCredentialFile(path string) error {
 	if err != nil {
 		return err
 	}
-	defer windows.CloseHandle(handle)
-	if !ownerCurrent {
-		return errors.New("Codex device credential owner is unsafe")
+	defer func() { _ = windows.CloseHandle(handle) }()
+	if !security.ownerCurrent {
+		return errors.New("codex device credential owner is unsafe")
 	}
 	return setCodexWindowsDeviceCredentialDACL(handle)
 }
 
 func setCodexWindowsPrivateDACL(handle windows.Handle, directory bool) error {
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return err
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		return err
@@ -497,11 +491,11 @@ func setCodexWindowsPrivateDACL(handle windows.Handle, directory bool) error {
 }
 
 func setCodexWindowsDeviceCredentialDACL(handle windows.Handle) error {
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return err
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		return err
@@ -551,26 +545,26 @@ func setCodexWindowsDeviceCredentialDACL(handle windows.Handle) error {
 	}
 	ownerCurrent, _, aclSafe, err := codexWindowsHandleSecurityForPolicy(handle, codexWindowsACLPolicyDeviceCredential)
 	if err != nil || !ownerCurrent || !aclSafe {
-		return errors.New("Codex device credential ACL could not be verified")
+		return errors.New("codex device credential ACL could not be verified")
 	}
 	sd, err := windows.GetSecurityInfo(handle, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
 	if err != nil || sd == nil {
-		return errors.New("Codex device credential ACL protection is unavailable")
+		return errors.New("codex device credential ACL protection is unavailable")
 	}
 	control, _, err := sd.Control()
 	if err != nil || control&windows.SE_DACL_PROTECTED == 0 {
-		return errors.New("Codex device credential ACL inheritance is not protected")
+		return errors.New("codex device credential ACL inheritance is not protected")
 	}
 	return nil
 }
 
 func syncDirectory(path string) error {
-	handle, info, ownerCurrent, _, aclSafe, err := openCodexWindowsPathWithAccess(path, true, codexWindowsDirectoryFlushAccess(), false)
+	handle, info, security, err := openCodexWindowsPathWithAccess(path, true, codexWindowsDirectoryFlushAccess(), false)
 	if err != nil {
 		return err
 	}
-	defer windows.CloseHandle(handle)
-	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, ownerCurrent, aclSafe), true, false) {
+	defer func() { _ = windows.CloseHandle(handle) }()
+	if !codexWindowsPathMetadataIsSafe(codexWindowsMetadata(info, security.ownerCurrent, security.aclSafe), true, false) {
 		return errors.New("codex directory owner or ACL is unsafe")
 	}
 	return windows.FlushFileBuffers(handle)

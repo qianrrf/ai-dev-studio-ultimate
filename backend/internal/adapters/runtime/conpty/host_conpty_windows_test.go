@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 	"time"
 )
@@ -65,8 +64,8 @@ func TestConPTYStartsAtRequestedGrid(t *testing.T) {
 	if deferred {
 		t.Fatal("an explicit grid must start the ConPTY immediately")
 	}
-	cmdPath := filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
-	conn, err := newConPTY(t.TempDir(), cmdPath, []string{"/d", "/s", "/c", "mode con"}, cols, rows)
+	cmdPath := filepath.Join(os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+	conn, err := newConPTY(t.TempDir(), cmdPath, []string{"-NoProfile", "-NonInteractive", "-Command", "[Console]::WriteLine(('AO_GRID:{0}x{1}' -f [Console]::WindowWidth, [Console]::WindowHeight))"}, cols, rows)
 	if err != nil {
 		t.Fatalf("newConPTY: %v", err)
 	}
@@ -81,9 +80,9 @@ func TestConPTYStartsAtRequestedGrid(t *testing.T) {
 	select {
 	case output = <-resultC:
 	case <-time.After(10 * time.Second):
-		t.Fatal("mode con did not finish")
+		t.Fatal("console size probe did not finish")
 	}
-	if !regexp.MustCompile(`Columns:\s+146\b`).Match(output) || !regexp.MustCompile(`Lines:\s+37\b`).Match(output) {
-		t.Fatalf("mode con output %q, want Columns 146 and Lines 37", output)
+	if !bytes.Contains(output, []byte("AO_GRID:146x37")) {
+		t.Fatalf("console size output %q, want 146 columns and 37 rows", output)
 	}
 }

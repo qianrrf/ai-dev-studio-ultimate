@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -26,6 +27,9 @@ func TestManifestIDIsKilocode(t *testing.T) {
 func TestResolveKilocodeBinaryFindsOfficialKiloCommand(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "kilo")
+	if runtime.GOOS == "windows" {
+		path += ".cmd"
+	}
 	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}

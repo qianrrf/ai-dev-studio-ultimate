@@ -11,6 +11,7 @@ import (
 func TestAiderAuthRecordsTheDecidingEnvironmentVariable(t *testing.T) {
 	// No Aider config or .env file: the environment is the fallback.
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
 	for _, name := range aiderAPIKeyEnvVars {
 		t.Setenv(name, "")
 	}

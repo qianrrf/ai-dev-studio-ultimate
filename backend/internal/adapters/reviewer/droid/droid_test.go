@@ -12,8 +12,10 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
 
+var testReviewerBinary = filepath.Join(os.TempDir(), "reviewer-fixtures", "droid")
+
 func TestReviewCommandUsesAutonomousInteractiveSettings(t *testing.T) {
-	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return "/opt/droid", nil }}
+	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil }}
 	if r.ReviewProcessReusable() {
 		t.Fatal("Droid reviewer tasks must launch fresh with their initial prompt")
 	}
@@ -27,7 +29,7 @@ func TestReviewCommandUsesAutonomousInteractiveSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	settingsPath := filepath.Join(root, settingsFilename)
-	want := []string{"/opt/droid", "--settings", settingsPath, "--append-system-prompt-file", inv.SystemPromptFile, "--cwd", inv.WorkspacePath, inv.Prompt}
+	want := []string{testReviewerBinary, "--settings", settingsPath, "--append-system-prompt-file", inv.SystemPromptFile, "--cwd", inv.WorkspacePath, inv.Prompt}
 	if !slices.Equal(spec.Argv, want) || spec.InitialMessage != "" {
 		t.Fatalf("spec = %#v, want argv %#v", spec, want)
 	}
@@ -72,9 +74,9 @@ func TestReviewPromptReadinessHintsDelayInitialInjection(t *testing.T) {
 }
 
 func TestReviewCommandPreflightValidationAndCancel(t *testing.T) {
-	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return "/opt/droid", nil }}
+	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil }}
 	spec, err := r.ReviewCommand(context.Background(), ports.ReviewInvocation{})
-	if err != nil || !slices.Equal(spec.Argv, []string{"/opt/droid"}) {
+	if err != nil || !slices.Equal(spec.Argv, []string{testReviewerBinary}) {
 		t.Fatalf("spec = %#v, %v", spec, err)
 	}
 	r.resolveBinary = func(context.Context) (string, error) { return "droid", nil }

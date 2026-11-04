@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 func TestFetcherUsesETagAndRetriesCacheless304WithoutValidator(t *testing.T) {
@@ -209,17 +211,9 @@ func TestCacheInstallsPrivateManifestLastAndLoadsLKG(t *testing.T) {
 		t.Fatalf("loaded openai version = %q", got)
 	}
 	for _, file := range append([]string{filepath.Join(cache.Root(), "manifest.json")}, providerFilePaths(t, cache.Root(), fixture)...) {
-		info, err := os.Stat(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := info.Mode().Perm(); got != 0o600 {
-			t.Fatalf("%s mode = %o, want 600", file, got)
-		}
+		testutil.AssertPrivatePath(t, file, 0o600)
 	}
-	if info, err := os.Stat(cache.Root()); err != nil || info.Mode().Perm() != 0o700 {
-		t.Fatalf("cache root mode = %v, %v", info.Mode().Perm(), err)
-	}
+	testutil.AssertPrivatePath(t, cache.Root(), 0o700)
 }
 
 // Break caught: shutdown cancellation was dropped at the cache boundary, so a
@@ -359,9 +353,7 @@ func TestCacheInstallRepairsCorruptProviderBlob(t *testing.T) {
 	if got := loaded.Snapshot().ProviderVersion("openai"); got != fixture.versions["openai"] {
 		t.Fatalf("repaired openai version = %q, want %q", got, fixture.versions["openai"])
 	}
-	if info, err := os.Stat(corrupted); err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("repaired blob mode = %v, %v", info.Mode().Perm(), err)
-	}
+	testutil.AssertPrivatePath(t, corrupted, 0o600)
 }
 
 func providerFilePaths(t *testing.T, root string, fixture testCatalog) []string {

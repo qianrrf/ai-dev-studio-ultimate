@@ -8202,7 +8202,12 @@ func TestSpawnAndRestore_PrependsResolvedBinaryAndNodeDirsToRuntimePATH(t *testi
 	// The daemon-dir pin stays at the HEAD: the agent binary is launched by
 	// absolute path and does not need its directory first, but a bare `ao` in
 	// the session must resolve to this daemon (see restorePinnedDir).
-	want := strings.Join([]string{filepath.Dir(daemonExe), binDir, nodeDir, "/usr/bin"}, string(os.PathListSeparator))
+	wantParts := []string{filepath.Dir(daemonExe), binDir}
+	// Windows does not execute Unix env-node shebangs or search NVM Unix layouts.
+	if runtime.GOOS != "windows" {
+		wantParts = append(wantParts, nodeDir)
+	}
+	want := strings.Join(append(wantParts, "/usr/bin"), string(os.PathListSeparator))
 
 	for _, operation := range []string{"spawn", "restore"} {
 		t.Run(operation, func(t *testing.T) {
@@ -8304,7 +8309,7 @@ func TestSpawn_DoesNotAddNodeRuntimeForNativeBinary(t *testing.T) {
 	if nodeLookups != 0 {
 		t.Fatalf("node LookPath calls = %d, want 0 for native binary", nodeLookups)
 	}
-	want := strings.Join([]string{"/ao/bin", binDir, "/usr/bin"}, string(os.PathListSeparator))
+	want := strings.Join([]string{filepath.Dir("/ao/bin/ao"), binDir, "/usr/bin"}, string(os.PathListSeparator))
 	if got := rt.lastCfg.Env["PATH"]; got != want {
 		t.Fatalf("runtime env PATH = %q, want %q", got, want)
 	}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 func testManifest(t *testing.T) Manifest {
@@ -39,18 +41,12 @@ func TestPrepareEnvironmentUsesPrivateAOOwnedDirectoriesAndImmutableManifest(t *
 		if err != nil || strings.HasPrefix(rel, "..") {
 			t.Fatalf("path %q is outside data dir %q", path, dataDir)
 		}
-		info, err := os.Stat(path)
-		if err != nil || info.Mode().Perm() != 0o700 {
-			t.Fatalf("directory %q mode = %v, err = %v", path, info.Mode().Perm(), err)
-		}
+		testutil.AssertPrivatePath(t, path, 0o700)
 	}
 	if got := env.TUIEnvironment(); got["HOME"] != env.ConfigRoot || got["TMPDIR"] != env.TempRoot || got["XDG_CACHE_HOME"] != env.CacheRoot {
 		t.Fatalf("TUI environment = %#v", got)
 	}
-	info, err := os.Stat(env.ManifestPath)
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("manifest mode = %v, err = %v", info.Mode().Perm(), err)
-	}
+	testutil.AssertPrivatePath(t, env.ManifestPath, 0o600)
 
 	again, err := PrepareEnvironment(dataDir, manifest)
 	if err != nil || again.ManifestPath != env.ManifestPath {
@@ -71,13 +67,11 @@ func TestPrepareHostTrustedEnvironmentUsesPrivateAOOwnedDirectories(t *testing.T
 	}
 	for _, path := range []string{env.Root, env.WorkingDirectory, env.ConfigRoot, env.StateRoot, env.CacheRoot, env.TempRoot} {
 		rel, relErr := filepath.Rel(dataDir, path)
-		info, statErr := os.Stat(path)
+		_, statErr := os.Stat(path)
 		if relErr != nil || strings.HasPrefix(rel, "..") || statErr != nil {
 			t.Fatalf("private AO-owned directory %q: rel=%q relErr=%v statErr=%v", path, rel, relErr, statErr)
 		}
-		if info.Mode().Perm() != 0o700 {
-			t.Fatalf("private AO-owned directory %q mode = %v", path, info.Mode().Perm())
-		}
+		testutil.AssertPrivatePath(t, path, 0o700)
 	}
 	got := env.TUIEnvironment()
 	if got["HOME"] != env.ConfigRoot || got["XDG_STATE_HOME"] != env.StateRoot || got["TMPDIR"] != env.TempRoot {

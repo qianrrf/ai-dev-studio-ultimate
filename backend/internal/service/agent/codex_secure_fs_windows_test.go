@@ -200,11 +200,11 @@ func newWindowsDeviceCredentialTestFile(t *testing.T) string {
 
 func currentWindowsTestUser(t *testing.T) *windows.SID {
 	t.Helper()
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		t.Fatal(err)
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		t.Fatal(err)
@@ -232,7 +232,7 @@ func windowsTestACE(sid *windows.SID, permissions windows.ACCESS_MASK, trusteeTy
 func setWindowsTestDACL(t *testing.T, path string, entries []windows.EXPLICIT_ACCESS) {
 	t.Helper()
 	handle := openWindowsTestFile(t, path, windows.GENERIC_READ|windows.READ_CONTROL|windows.WRITE_DAC)
-	defer windows.CloseHandle(handle)
+	defer func() { _ = windows.CloseHandle(handle) }()
 	dacl, err := windows.ACLFromEntries(entries, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -261,19 +261,19 @@ func assertWindowsSandboxReadOnlyACE(t *testing.T, sd *windows.SECURITY_DESCRIPT
 	if err != nil || dacl == nil {
 		t.Fatalf("repaired DACL unavailable: %v", err)
 	}
-	header := (*codexWindowsACLHeader)(unsafe.Pointer(dacl))
-	for index := uint32(0); index < uint32(header.count); index++ {
+
+	for index := uint32(0); index < uint32(dacl.AceCount); index++ {
 		var raw *windows.ACCESS_ALLOWED_ACE
 		if err := windows.GetAce(dacl, index, &raw); err != nil || raw == nil {
 			t.Fatalf("reading repaired ACE %d: %v", index, err)
 		}
-		prefix := (*codexWindowsACEPrefix)(unsafe.Pointer(raw))
-		if prefix.header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
+
+		if raw.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
 			continue
 		}
-		sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart))
+		sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart)) // #nosec G103 -- GetAce returns the Windows ACCESS_ALLOWED_ACE layout; SID validity is checked below.
 		if sid.IsValid() && sid.Equals(sandbox) {
-			mask := uint32(prefix.mask)
+			mask := uint32(raw.Mask)
 			if mask&codexWindowsMutationMask != 0 || mask&codexWindowsReadData == 0 || mask&codexWindowsReadControl == 0 {
 				t.Fatalf("sandbox ACE mask = %#x, want mapped read-only rights", mask)
 			}

@@ -39,7 +39,7 @@ type Installer struct {
 	Browsers []Browser
 	// registry abstracts the Windows registry for tests; nil uses the
 	// platform implementation.
-	registry hostRegistry
+	registry func() hostRegistry
 }
 
 // ChannelStatus reports registration for one Chrome channel.
@@ -91,7 +91,7 @@ func (i Installer) browsers() []Browser {
 
 func (i Installer) reg() hostRegistry {
 	if i.registry != nil {
-		return i.registry
+		return i.registry()
 	}
 	return platformRegistry()
 }
@@ -382,12 +382,4 @@ type hostRegistry interface {
 	Register(name, manifestPath string) error
 	Unregister(name string) error
 	Lookup(name string) (string, error)
-}
-
-func browsersUnder(base string, channels ...[2]string) []Browser {
-	out := make([]Browser, 0, len(channels))
-	for _, channel := range channels {
-		out = append(out, Browser{Name: channel[0], UserDataDir: filepath.Join(base, filepath.FromSlash(channel[1]))})
-	}
-	return out
 }

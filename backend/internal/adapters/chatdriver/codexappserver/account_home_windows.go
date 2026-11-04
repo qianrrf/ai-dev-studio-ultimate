@@ -9,19 +9,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type accountHomeACLHeader struct {
-	revision byte
-	padding  byte
-	size     uint16
-	count    uint16
-	padding2 uint16
-}
-
-type accountHomeACEPrefix struct {
-	header windows.ACE_HEADER
-	mask   windows.ACCESS_MASK
-}
-
 const (
 	accountHomeAccessDeniedObjectACEType         uint8 = 0x06
 	accountHomeAccessDeniedCallbackACEType       uint8 = 0x0a
@@ -56,11 +43,11 @@ func managedHomePrivate(path string, _ os.FileInfo) bool {
 	}
 	defer func() { _ = windows.CloseHandle(handle) }()
 
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return false
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		return false
@@ -93,22 +80,22 @@ func managedHomePrivate(path string, _ os.FileInfo) bool {
 }
 
 func managedHomeDACLPrivate(dacl *windows.ACL, user, system, administrators *windows.SID) bool {
-	header := (*accountHomeACLHeader)(unsafe.Pointer(dacl))
-	for index := uint32(0); index < uint32(header.count); index++ {
+
+	for index := uint32(0); index < uint32(dacl.AceCount); index++ {
 		var raw *windows.ACCESS_ALLOWED_ACE
 		if err := windows.GetAce(dacl, index, &raw); err != nil || raw == nil {
 			return false
 		}
-		prefix := (*accountHomeACEPrefix)(unsafe.Pointer(raw))
-		if prefix.header.AceFlags&windows.INHERIT_ONLY_ACE != 0 {
+
+		if raw.Header.AceFlags&windows.INHERIT_ONLY_ACE != 0 {
 			continue
 		}
-		switch prefix.header.AceType {
+		switch raw.Header.AceType {
 		case windows.ACCESS_ALLOWED_ACE_TYPE:
-			if uint32(prefix.mask) == 0 {
+			if uint32(raw.Mask) == 0 {
 				continue
 			}
-			sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart))
+			sid := (*windows.SID)(unsafe.Pointer(&raw.SidStart)) // #nosec G103 -- GetAce returns the Windows ACCESS_ALLOWED_ACE layout; SID validity is checked below.
 			if !sid.IsValid() || (!sid.Equals(user) && !sid.Equals(system) && !sid.Equals(administrators)) {
 				return false
 			}

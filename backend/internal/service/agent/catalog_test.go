@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -1783,13 +1782,7 @@ func TestGlobalModelDiscoveryUsesAODirectoryWithoutProject(t *testing.T) {
 	if request.WorkingDir != discoveryDir {
 		t.Fatalf("working directory = %q, want %q", request.WorkingDir, discoveryDir)
 	}
-	info, err := os.Stat(discoveryDir)
-	if err != nil {
-		t.Fatalf("stat model discovery directory: %v", err)
-	}
-	if got := info.Mode().Perm(); got != 0o700 {
-		t.Fatalf("model discovery directory permissions = %o, want 700", got)
-	}
+	assertPrivateTestPath(t, discoveryDir, 0o700)
 }
 
 // Model catalogs are device-wide: a picker opened in any project reads the one

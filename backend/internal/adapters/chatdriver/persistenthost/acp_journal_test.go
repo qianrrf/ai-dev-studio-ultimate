@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 func TestACPPromptJournalReplaysResetsAndEnforcesQuota(t *testing.T) {
@@ -16,13 +17,7 @@ func TestACPPromptJournalReplaysResetsAndEnforcesQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = journal.close(context.Background()) })
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm() != 0o600 {
-		t.Fatalf("journal permissions = %v", info.Mode().Perm())
-	}
+	testutil.AssertPrivatePath(t, path, 0o600)
 	var spans []acpJournalSpan
 	for _, frame := range [][]byte{[]byte("one\n"), []byte("two\n")} {
 		span, err := journal.append(context.Background(), frame)

@@ -27,6 +27,7 @@ func TestAiderLocalAuthStatusAuthorizedWithConfigFile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	t.Setenv("USERPROFILE", home)
 	if err := os.WriteFile(filepath.Join(home, ".aider.conf.yml"), []byte("openai-api-key: sk-test\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +45,7 @@ func TestAiderLocalAuthStatusAuthorizedWithDocumentedAPIKeyList(t *testing.T) {
 	clearAiderAuthEnv(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	if err := os.WriteFile(filepath.Join(home, ".aider.conf.yml"), []byte("api-key:\n  - openrouter=sk-test\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -60,6 +62,7 @@ func TestAiderLocalAuthStatusAuthorizedWithDotEnv(t *testing.T) {
 	clearAiderAuthEnv(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("USERPROFILE", home)
 	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("ANTHROPIC_API_KEY=sk-ant-test\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -78,6 +81,7 @@ func TestAiderLocalAuthStatusAuthorizedWithOAuthKeysFile(t *testing.T) {
 	clearAiderAuthEnv(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("USERPROFILE", home)
 	if err := os.Mkdir(filepath.Join(home, ".aider"), 0o700); err != nil {
 		t.Fatal(err)
@@ -99,6 +103,7 @@ func TestAiderLocalAuthStatusUnknownWhenMissing(t *testing.T) {
 	clearAiderAuthEnv(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("USERPROFILE", home)
 
 	status, ok, err := aiderLocalAuthStatus(context.Background())

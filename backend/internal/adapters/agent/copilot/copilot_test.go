@@ -438,6 +438,7 @@ func TestResolveCopilotBinaryFallbacks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			home := t.TempDir()
 			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
 			t.Setenv("PATH", t.TempDir())
 			t.Setenv("VOLTA_HOME", filepath.Join(home, ".volta"))
 			t.Setenv("FNM_DIR", "")
@@ -485,6 +486,7 @@ func TestResolveCopilotBinaryIgnoresVSCodeLauncher(t *testing.T) {
 	setup := func(t *testing.T) (home, launcher string) {
 		home = t.TempDir()
 		t.Setenv("HOME", home)
+		t.Setenv("USERPROFILE", home)
 		t.Setenv("VOLTA_HOME", filepath.Join(home, ".volta"))
 		t.Setenv("FNM_DIR", "")
 		return home, writeVSCodeCopilotLauncher(t, home)
@@ -555,6 +557,7 @@ func TestCopilotClassicPATIsNotAnAuthorizationSignal(t *testing.T) {
 	clearCopilotAuthEnv(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("GH_TOKEN", "ghp_classic_token")
 
@@ -1215,7 +1218,10 @@ func TestOnlyASwitchTargetTrustsTheWorkspaceForCopilot(t *testing.T) {
 	New().PrepareSwitchTarget(context.Background(), workspace)
 	data, err := os.ReadFile(config)
 	resolved, _ := filepath.EvalSymlinks(workspace)
-	if err != nil || !strings.Contains(string(data), resolved) {
+	var trusted struct {
+		TrustedFolders []string `json:"trustedFolders"`
+	}
+	if err != nil || json.Unmarshal(data, &trusted) != nil || len(trusted.TrustedFolders) != 1 || trusted.TrustedFolders[0] != resolved {
 		t.Fatalf("config.json = %q (%v), want %s trusted", data, err, resolved)
 	}
 }

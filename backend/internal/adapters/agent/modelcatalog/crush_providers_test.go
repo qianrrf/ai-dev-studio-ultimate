@@ -11,6 +11,7 @@ import (
 func TestCrushConfiguredProvidersReadsConfigAndProviderKeys(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	for _, name := range crushProviderKeyEnv {
 		t.Setenv(name, "")
 	}
@@ -64,6 +65,7 @@ func TestCrushConfiguredProvidersReadsConfigAndProviderKeys(t *testing.T) {
 func TestCrushConfiguredProvidersFallsBackToBundledKeysAndHonorsDirOverrides(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home"))
 	for _, name := range crushProviderKeyEnv {
 		t.Setenv(name, "")
 	}

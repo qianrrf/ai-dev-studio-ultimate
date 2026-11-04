@@ -13,6 +13,7 @@ import (
 func TestClineConfiguredProvidersReadsStoredCredentials(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	for _, name := range []string{"CLINE_API_KEY", "CLINE_DIR", "CLINE_DATA_DIR", "CLINE_PROVIDER_SETTINGS_PATH"} {
 		t.Setenv(name, "")
 	}
@@ -47,6 +48,7 @@ func TestClineConfiguredProvidersReadsStoredCredentials(t *testing.T) {
 func TestClineConfiguredProvidersHonorsOverridesAndAPIKeyEnv(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home"))
 	t.Setenv("CLINE_DIR", "")
 	t.Setenv("CLINE_DATA_DIR", "")
 	path := filepath.Join(root, "custom", "providers.json")

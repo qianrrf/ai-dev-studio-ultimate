@@ -3,6 +3,8 @@ package devin
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -11,8 +13,10 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
 
+var testReviewerBinary = filepath.Join(os.TempDir(), "reviewer-fixtures", "devin")
+
 func TestReviewCommandUsesVisibleInteractiveTUI(t *testing.T) {
-	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return "/opt/devin", nil }}
+	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil }}
 	inv := ports.ReviewInvocation{
 		TaskPromptRoot: "/ao/prompts", SystemPromptFile: "/ao/prompts/system.md", Prompt: "Read task.md.",
 	}
@@ -20,7 +24,7 @@ func TestReviewCommandUsesVisibleInteractiveTUI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(spec.Argv, []string{"/opt/devin", "--permission-mode", "auto"}) {
+	if !slices.Equal(spec.Argv, []string{testReviewerBinary, "--permission-mode", "auto"}) {
 		t.Fatalf("argv = %#v", spec.Argv)
 	}
 	if !strings.Contains(spec.InitialMessage, "/ao/prompts/system.md") || !strings.Contains(spec.InitialMessage, "Read task.md.") {
@@ -48,7 +52,7 @@ func TestReviewCommandRejectsUnsafeInputs(t *testing.T) {
 	if _, err := r.ReviewCommand(context.Background(), ports.ReviewInvocation{}); err == nil {
 		t.Fatal("expected relative binary rejection")
 	}
-	r.resolveBinary = func(context.Context) (string, error) { return "/opt/devin", nil }
+	r.resolveBinary = func(context.Context) (string, error) { return testReviewerBinary, nil }
 	if _, err := r.ReviewCommand(context.Background(), ports.ReviewInvocation{TaskPromptRoot: "/ao"}); err == nil {
 		t.Fatal("expected missing system prompt rejection")
 	}

@@ -163,7 +163,7 @@ func ompConfiguredProviders(ctx context.Context, path string) ([]string, bool) {
 	} else if err != nil {
 		return nil, true
 	}
-	dsn := (&url.URL{Scheme: "file", Path: filepath.ToSlash(path), RawQuery: "mode=ro"}).String()
+	dsn := "file:" + (&url.URL{Path: filepath.ToSlash(path)}).EscapedPath() + "?mode=ro"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, true

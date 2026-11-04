@@ -12,7 +12,7 @@ import (
 func TestCodexReconnectStatesPlanModeOnTheNextTurn(t *testing.T) {
 	d, srv := newTestDriver(t)
 	srv.replyError("initialize", -32600, "Already initialized")
-	proc, err := d.spawn(context.Background(), "codex", "/tmp/ws", nil)
+	proc, err := d.spawn(context.Background(), "codex", testWorkspacePath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestCodexReconnectLeavesAFastTierTheThreadMayStillBeOn(t *testing.T) {
 			d, srv := newTestDriver(t)
 			srv.replyError("initialize", -32600, "Already initialized")
 			srv.respondTo("config/read", tt.config)
-			proc, err := d.spawn(context.Background(), "codex", "/tmp/ws", nil)
+			proc, err := d.spawn(context.Background(), "codex", testWorkspacePath, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

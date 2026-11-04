@@ -165,6 +165,10 @@ if [ "$1" = "--version" ]; then
 fi
 exit 2
 `
+	if runtime.GOOS == "windows" {
+		path += ".cmd"
+		source = "@echo off\r\nif \"%~1\"==\"--version\" (echo pi " + version + "& exit /b 0)\r\nexit /b 2\r\n"
+	}
 	if err := os.WriteFile(path, []byte(source), 0o755); err != nil {
 		t.Fatal(err)
 	}

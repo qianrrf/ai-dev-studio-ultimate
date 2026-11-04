@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -83,7 +84,7 @@ func TestBuildHandoffNoteStaysUnderTheCapAndKeepsTheLatestTurn(t *testing.T) {
 	if !strings.Contains(got, "request-21") || !strings.Contains(got, "response-21") {
 		t.Fatalf("the latest turn must never be dropped")
 	}
-	if !strings.Contains(got, "(and 150 more)") {
+	if !regexp.MustCompile(`\(and (1[5-9][0-9]|200) more\)`).MatchString(got) {
 		t.Fatalf("changed files beyond the limit must be counted")
 	}
 }
@@ -111,6 +112,11 @@ func TestBuildHandoffNoteQuotedTextCannotCloseTheBlock(t *testing.T) {
 }
 
 func TestHandoffNoteFitsAWindowsCommandLine(t *testing.T) {
+	for _, goos := range []string{"linux", "darwin"} {
+		if limit := handoffNoteCharLimit(goos); limit != ProviderSwitchMaxBootstrapChars {
+			t.Fatalf("%s note limit = %d, want provider bootstrap limit", goos, limit)
+		}
+	}
 	if limit := handoffNoteCharLimit("windows"); limit*2 > 32_767 {
 		t.Fatalf("Windows note limit %d leaves no room on a 32,767-unit command line", limit)
 	}

@@ -12,6 +12,7 @@ import (
 
 var unsafePipeChars = regexp.MustCompile(`[^a-zA-Z0-9\-]`)
 
+// Listen opens an owner-only Windows named pipe for browser streaming.
 func Listen(runFilePath string) (net.Listener, string, error) {
 	suffix := unsafePipeChars.ReplaceAllString(filepath.Base(filepath.Dir(runFilePath)), "-")
 	if suffix == "" || suffix == ".ai-dev-studio-ultimate" || suffix == "." {

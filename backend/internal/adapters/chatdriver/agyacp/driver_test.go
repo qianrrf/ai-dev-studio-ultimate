@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -334,6 +335,9 @@ func samePath(t *testing.T, a, b string) bool {
 
 func writeExecutable(t *testing.T, path string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" && filepath.Base(path) == harnessFileName {
+		path += ".exe"
+	}
 	writeFile(t, path, "#!/bin/sh\n")
 	if err := os.Chmod(path, 0o755); err != nil {
 		t.Fatal(err)

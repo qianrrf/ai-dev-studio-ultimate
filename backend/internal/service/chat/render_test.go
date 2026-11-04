@@ -17,6 +17,7 @@ import (
 	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
 	"github.com/aoagents/agent-orchestrator/backend/internal/sessionartifacts"
 	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/store"
+	"github.com/aoagents/agent-orchestrator/backend/internal/testutil"
 )
 
 type renderDetail struct {
@@ -432,9 +433,7 @@ func TestSaveRenderAsArtifactWritesTheServedPage(t *testing.T) {
 	if want := renderpage.Document([]byte("<!doctype html><p>chart</p>")); string(saved) != string(want) {
 		t.Fatalf("saved = %.200q, want the served document", saved)
 	}
-	if info, _ := os.Stat(file); info.Mode().Perm() != 0o600 {
-		t.Fatalf("mode = %v, want 0600", info.Mode().Perm())
-	}
+	testutil.AssertPrivatePath(t, file, 0o600)
 	if !reflect.DeepEqual(h.reconciled, []domain.SessionID{testSession}) {
 		t.Fatalf("reconciled = %v, want the session once", h.reconciled)
 	}

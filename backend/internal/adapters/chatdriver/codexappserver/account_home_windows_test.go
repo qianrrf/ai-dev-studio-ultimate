@@ -81,8 +81,8 @@ func TestManagedHomeDACLKeepsKnownDeniesAndInheritOnlyNonGranting(t *testing.T) 
 
 func currentAccountHomeTestUser(t *testing.T) *windows.SID {
 	t.Helper()
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = token.Close() }()
@@ -168,11 +168,11 @@ func TestManagedHomePrivateOnWindows(t *testing.T) {
 // managed credential home.
 func applyOwnerOnlyDACL(t *testing.T, path string) {
 	t.Helper()
-	token, err := windows.OpenCurrentProcessToken()
-	if err != nil {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		t.Fatalf("open token: %v", err)
 	}
-	defer token.Close()
+	defer func() { _ = token.Close() }()
 	user, err := token.GetTokenUser()
 	if err != nil {
 		t.Fatalf("token user: %v", err)

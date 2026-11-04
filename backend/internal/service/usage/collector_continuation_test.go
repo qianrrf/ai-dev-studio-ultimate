@@ -62,7 +62,7 @@ func TestCollectorDiscoversClaudeContinuationInWorkspaceDir(t *testing.T) {
 	collector := NewCollector(store, SourceRoots{ClaudeProjects: claudeRoot}, nil)
 	writeUsageFixture(t, filepath.Join(claudeRoot, "encoded-worktree", continuationNativeB+".jsonl"),
 		`{"type":"last-prompt","sessionId":"`+continuationNativeB+`"}`+"\n"+
-			`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+worktree+`"}`+"\n")
+			`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+filepath.ToSlash(worktree)+`"}`+"\n")
 	mustNoError(t, collector.ReconcileSources(ctx, 8))
 
 	sources := continuationBindingIDs(t, store, session.ID)
@@ -86,7 +86,7 @@ func TestCollectorContinuationDiscoveryIsIdempotent(t *testing.T) {
 
 	collector := NewCollector(store, SourceRoots{ClaudeProjects: claudeRoot}, nil)
 	writeUsageFixture(t, filepath.Join(claudeRoot, "encoded-worktree", continuationNativeB+".jsonl"),
-		`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+worktree+`"}`+"\n")
+		`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+filepath.ToSlash(worktree)+`"}`+"\n")
 	mustNoError(t, collector.ReconcileSources(ctx, 8))
 	mustNoError(t, collector.ReconcileSources(ctx, 8))
 
@@ -138,7 +138,7 @@ func TestCollectorContinuationDiscoveryIgnoresPathBoundToAnotherSession(t *testi
 	)
 	claimedPath := filepath.Join(claudeRoot, "encoded-worktree", continuationNativeB+".jsonl")
 	writeUsageFixture(t, claimedPath,
-		`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+worktree+`"}`+"\n")
+		`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+filepath.ToSlash(worktree)+`"}`+"\n")
 	identity, err := SourceIdentity(ctx, claimedPath)
 	mustNoError(t, err)
 	// Production always stores the resolved (symlink-followed) path; mirror that.
@@ -214,7 +214,7 @@ func TestCollectorContinuationDiscoveryIgnoresSessionIdFilenameMismatch(t *testi
 	// would strand a zero-source binding that fails every reconcile pass.
 	writeUsageFixture(t, filepath.Join(claudeRoot, "encoded-worktree", "mismatched.jsonl"),
 		`{"type":"last-prompt","sessionId":"`+continuationNativeB+`"}`+"\n"+
-			`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+worktree+`"}`+"\n")
+			`{"type":"user","sessionId":"`+continuationNativeB+`","cwd":"`+filepath.ToSlash(worktree)+`"}`+"\n")
 	mustNoError(t, collector.ReconcileSources(ctx, 8))
 	mustNoError(t, collector.ReconcileSources(ctx, 8))
 

@@ -203,6 +203,15 @@ func TestCheck_TmuxMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
+	if runtime.GOOS == "windows" {
+		if !report.Ready {
+			t.Fatal("Windows requires no tmux")
+		}
+		if tmux := requirementByID(t, report, "tmux"); !tmux.Satisfied {
+			t.Fatal("Windows native terminal must satisfy the runtime requirement")
+		}
+		return
+	}
 	if report.Ready {
 		t.Fatalf("Ready = true, want false")
 	}

@@ -95,6 +95,7 @@ func testInstaller(t *testing.T) (Installer, string, string) {
 		t.Fatal(err)
 	}
 	return Installer{
+		registry:        func() hostRegistry { return nil },
 		Paths:           NewPaths(filepath.Join(root, "data")),
 		Executable:      executable,
 		ExtensionSource: source,
@@ -206,7 +207,7 @@ func TestSetupWithoutChromeFails(t *testing.T) {
 func TestSetupUsesRegistryWhenPresent(t *testing.T) {
 	installer, _, _ := testInstaller(t)
 	reg := &fakeRegistry{values: map[string]string{}}
-	installer.registry = reg
+	installer.registry = func() hostRegistry { return reg }
 	status, err := installer.Setup()
 	if err != nil {
 		t.Fatal(err)
@@ -225,9 +226,9 @@ func TestSetupUsesRegistryWhenPresent(t *testing.T) {
 func TestRemoveKeepsAnotherInstallsRegistryEntry(t *testing.T) {
 	reg := &fakeRegistry{values: map[string]string{}}
 	first, _, _ := testInstaller(t)
-	first.registry = reg
+	first.registry = func() hostRegistry { return reg }
 	second, _, _ := testInstaller(t) // another AO data directory
-	second.registry = reg
+	second.registry = func() hostRegistry { return reg }
 	if _, err := first.Setup(); err != nil {
 		t.Fatal(err)
 	}

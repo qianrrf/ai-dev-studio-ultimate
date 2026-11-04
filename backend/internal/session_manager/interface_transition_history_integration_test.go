@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -46,7 +47,11 @@ func TestInterfaceTransitionNativeHistoryOwnership(t *testing.T) {
 							t.Fatal(err)
 						}
 					}
-					if err := os.WriteFile(filepath.Join(binDir, "claude"), []byte("test executable"), 0700); err != nil {
+					binaryName := "claude"
+					if runtime.GOOS == "windows" {
+						binaryName += ".cmd"
+					}
+					if err := os.WriteFile(filepath.Join(binDir, binaryName), []byte("test executable"), 0700); err != nil {
 						t.Fatal(err)
 					}
 					t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))

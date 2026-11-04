@@ -11,8 +11,10 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
 
+var testReviewerBinary = filepath.Join(os.TempDir(), "reviewer-fixtures", "kimi")
+
 func TestReviewCommandUsesPlanModeAndEmptySkillsDirectory(t *testing.T) {
-	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return "/opt/kimi", nil }}
+	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil }}
 	root := t.TempDir()
 	inv := ports.ReviewInvocation{
 		TaskPromptRoot: root, SystemPromptFile: filepath.Join(root, "system.md"), Prompt: "Read task.",
@@ -22,11 +24,11 @@ func TestReviewCommandUsesPlanModeAndEmptySkillsDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	skillsDir := filepath.Join(root, skillsDirectoryName)
-	want := []string{"/opt/kimi", "--plan", "--auto", "--skills-dir", skillsDir}
+	want := []string{testReviewerBinary, "--plan", "--auto", "--skills-dir", skillsDir}
 	if !slices.Equal(spec.Argv, want) {
 		t.Fatalf("argv = %#v, want %#v", spec.Argv, want)
 	}
-	if !strings.Contains(spec.InitialMessage, inv.SystemPromptFile) || !strings.Contains(spec.InitialMessage, inv.Prompt) {
+	if !strings.Contains(spec.InitialMessage, filepath.ToSlash(inv.SystemPromptFile)) || !strings.Contains(spec.InitialMessage, inv.Prompt) {
 		t.Fatalf("initial message = %q", spec.InitialMessage)
 	}
 	entries, err := os.ReadDir(skillsDir)
@@ -41,9 +43,9 @@ func TestReviewCommandUsesPlanModeAndEmptySkillsDirectory(t *testing.T) {
 }
 
 func TestReviewCommandPreflightValidationAndCancel(t *testing.T) {
-	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return "/opt/kimi", nil }}
+	r := &Reviewer{resolveBinary: func(context.Context) (string, error) { return testReviewerBinary, nil }}
 	spec, err := r.ReviewCommand(context.Background(), ports.ReviewInvocation{})
-	if err != nil || !slices.Equal(spec.Argv, []string{"/opt/kimi", "--plan", "--auto"}) {
+	if err != nil || !slices.Equal(spec.Argv, []string{testReviewerBinary, "--plan", "--auto"}) {
 		t.Fatalf("spec = %#v, %v", spec, err)
 	}
 	if _, err := r.ReviewCommand(context.Background(), ports.ReviewInvocation{TaskPromptRoot: t.TempDir()}); err == nil {

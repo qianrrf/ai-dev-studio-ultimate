@@ -144,8 +144,8 @@ func defaultSpawnHost(ctx context.Context, sessionID, cwd string, argv []string,
 		}
 		// Unref: detach stdout so the child is not blocked, then release reference
 		// so our process can exit while the child keeps running.
-		stdout.Close()
-		cmd.Process.Release() // nolint: errcheck - best-effort detach
+		_ = stdout.Close()
+		_ = cmd.Process.Release() // Best-effort detach; the host already acknowledged readiness.
 		return r.addr, cmd.Process.Pid, nil
 	case <-timer.C:
 		pid, err := cleanupStartedHostFailure(cmd.Process.Pid, fmt.Errorf("conpty spawn: pty-host startup timeout (%s)", spawnReadyTimeout), cmd.Process.Kill)

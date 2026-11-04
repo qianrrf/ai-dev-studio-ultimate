@@ -1,6 +1,7 @@
 package kimiacp
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "acp" {
+		os.Exit(runTrackedInstructionsACP())
+	}
 	if len(os.Args) >= 7 && os.Args[1] == "chat-host" {
 		protocol := persistenthost.ProtocolRaw
 		fingerprint := ""
@@ -66,25 +70,11 @@ func TestKimiHandoffReachesKimiCodeWhenTheProjectCommitsItsInstructions(t *testi
 					}
 				}
 			}
-			fake := filepath.Join(t.TempDir(), "kimi-repro")
-			capture := filepath.Join(t.TempDir(), "requests.jsonl")
-			script := `#!/usr/bin/env python3
-import sys,json,os
-for line in sys.stdin:
-    request=json.loads(line)
-    with open(os.environ["AO_KIMI_REPRO_CAPTURE"],"a") as out:
-        out.write(json.dumps(request)+"\n")
-    if "id" not in request: continue
-    method=request.get("method")
-    result={}
-    if method=="initialize": result={"protocolVersion":1,"agentCapabilities":{},"authMethods":[]}
-    if method=="session/new": result={"sessionId":"kimi-repro-session"}
-    if method=="session/prompt": result={"stopReason":"end_turn"}
-    print(json.dumps({"jsonrpc":"2.0","id":request["id"],"result":result}),flush=True)
-`
-			if err := os.WriteFile(fake, []byte(script), 0700); err != nil {
+			fake, err := os.Executable()
+			if err != nil {
 				t.Fatal(err)
 			}
+			capture := filepath.Join(t.TempDir(), "requests.jsonl")
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			driver := New(fakePlugin{binary: fake, status: ports.AgentAuthStatusAuthorized}, nil)
@@ -141,4 +131,46 @@ for line in sys.stdin:
 			}
 		})
 	}
+}
+
+// The test executable is the protocol peer on every OS; no shebang or Python runtime is needed.
+func runTrackedInstructionsACP() int {
+	file, err := os.OpenFile(os.Getenv("AO_KIMI_REPRO_CAPTURE"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return 1
+	}
+	defer func() { _ = file.Close() }()
+	scanner := bufio.NewScanner(os.Stdin)
+	encoder := json.NewEncoder(os.Stdout)
+	for scanner.Scan() {
+		var request struct {
+			ID     *json.RawMessage
+			Method string
+		}
+		if json.Unmarshal(scanner.Bytes(), &request) != nil {
+			return 1
+		}
+		if _, err := file.Write(append(append([]byte(nil), scanner.Bytes()...), '\n')); err != nil {
+			return 1
+		}
+		if request.ID == nil {
+			continue
+		}
+		result := map[string]any{}
+		switch request.Method {
+		case "initialize":
+			result = map[string]any{"protocolVersion": 1, "agentCapabilities": map[string]any{}, "authMethods": []any{}}
+		case "session/new":
+			result["sessionId"] = "kimi-repro-session"
+		case "session/prompt":
+			result["stopReason"] = "end_turn"
+		}
+		if err := encoder.Encode(map[string]any{"jsonrpc": "2.0", "id": *request.ID, "result": result}); err != nil {
+			return 1
+		}
+	}
+	if scanner.Err() != nil {
+		return 1
+	}
+	return 0
 }

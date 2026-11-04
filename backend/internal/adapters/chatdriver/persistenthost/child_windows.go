@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,7 +40,7 @@ func startProviderProcess(cmd *exec.Cmd) (func(), error) {
 	var limits windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
 	limits.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation,
-		uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil {
+		uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil { // #nosec G103 -- Synchronous Win32 call receives a correctly sized JOBOBJECT_EXTENDED_LIMIT_INFORMATION.
 		_ = windows.CloseHandle(job)
 		return nil, fmt.Errorf("set provider job limit: %w", err)
 	}
@@ -52,6 +53,9 @@ func startProviderProcess(cmd *exec.Cmd) (func(), error) {
 		_ = cmd.Wait()
 		_ = windows.CloseHandle(job)
 		return nil, err
+	}
+	if cmd.Process.Pid <= 0 || uint64(cmd.Process.Pid) > math.MaxUint32 {
+		return abort(errors.New("provider process id is outside the Windows range"))
 	}
 	process, err := windows.OpenProcess(windows.PROCESS_SET_QUOTA|windows.PROCESS_TERMINATE,
 		false, uint32(cmd.Process.Pid))
@@ -70,6 +74,9 @@ func startProviderProcess(cmd *exec.Cmd) (func(), error) {
 }
 
 func resumeProviderProcess(pid int) error {
+	if pid <= 0 || uint64(pid) > math.MaxUint32 {
+		return errors.New("provider process id is outside the Windows range")
+	}
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPTHREAD, 0)
 	if err != nil {
 		return err
