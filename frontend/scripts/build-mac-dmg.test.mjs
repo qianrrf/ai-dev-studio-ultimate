@@ -204,6 +204,8 @@ describe("validateMountedLayout", () => {
 		mkdirSync(path.join(volume, APP_BUNDLE_NAME));
 		symlinkSync("/Applications", path.join(volume, "Applications"));
 		expect(await validateMountedLayout(volume)).toEqual([
+			// Windows expands this rooted link to the current drive, not the macOS target.
+			...(process.platform === "win32" ? ["Applications is not a symlink to /Applications"] : []),
 			"missing .VolumeIcon.icns",
 			"expected one background image, found 0",
 			"missing .DS_Store (Finder will show the default window)",
