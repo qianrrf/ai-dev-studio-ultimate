@@ -69,7 +69,7 @@ async function until(fn, description, seconds=60) {
  result.control=claimed;result.tests.push('bundled CLI registers Chinese/space Git path; CAS rejects stale revision; intake deduplicates without starting models');
  const longRepo=path.join(root,'long-path',...Array.from({length:5},(_,i)=>`segment-${i}-${'a'.repeat(32)}`),'项目');
  fs.mkdirSync(longRepo,{recursive:true});
- const longGit=(...args)=>{const r=spawnSync('git',['-c','core.longpaths=true','-C',longRepo,...args],{cwd:root,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
+ const longGit=(...args)=>{const r=spawnSync('git',['-c','core.longpaths=true',...args],{cwd:longRepo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
  try {
   longGit('init','-b','main');longGit('config','core.longpaths','true');longGit('-c','user.name=Installer validation','-c','user.email=validation@example.invalid','commit','--allow-empty','-m','test: long path');
   await api('POST','/projects',{path:longRepo,projectId:'long-path-validation',name:'长路径验收'},201);
@@ -89,7 +89,9 @@ async function until(fn, description, seconds=60) {
  await page.waitForFunction(()=>!document.querySelector('[data-testid="daemon-startup-loader"]') && document.body.innerText.includes('AI Dev Studio Ultimate'));
  await page.screenshot({path:path.join(root,'desktop-after-restart.png')});
  result.rendererErrors=errors; assert.equal(errors.length,0);
- result.passed=true;
+ result.coreChecksPassed=true;
+ result.passed=result.longPath.supported;
+ if(!result.passed) process.exitCode=1;
 })().catch(error=> { result.passed=false; result.error=error.stack; process.exitCode=1; }).finally(async()=>{
  try { if(browser) { const session=await browser.newBrowserCDPSession(); await session.send('Browser.close'); } } catch {}
  await pause(1500);
