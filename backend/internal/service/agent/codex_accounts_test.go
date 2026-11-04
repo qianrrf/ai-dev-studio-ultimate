@@ -739,6 +739,7 @@ func TestActiveReauthenticationPreservesCredentialsWhenDeviceChangesAfterTermina
 		writeCredential: true,
 		credential:      newCredential,
 		result:          shellterm.ShellTerminal{HandleID: "shellterm-login-reauth", Title: "Sign in to Codex account"},
+		childRunning:    true,
 	}
 
 	started, err := manager.openLoginTerminal(context.Background(), record.Snapshot.ID)
@@ -749,6 +750,10 @@ func TestActiveReauthenticationPreservesCredentialsWhenDeviceChangesAfterTermina
 	if err := writeGlobalCredentialAtomic(manager.globalCredentialPath(), externalCredential); err != nil {
 		t.Fatal(err)
 	}
+	terminal := manager.terminal.(*fakeCodexLoginTerminal)
+	terminal.mu.Lock()
+	terminal.childRunning = false
+	terminal.mu.Unlock()
 
 	result, err := verifyTestCodexLogin(t, manager, started.Operation.OperationID)
 	if err != nil {

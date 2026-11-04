@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
@@ -161,6 +162,9 @@ func TestResolveWorkspacePathAppliesParentAfterFollowingSymlink(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// The fixture is only meaningful if the OS reads the path this way.
+			if runtime.GOOS == "windows" {
+				tc.wantKind, tc.wantPath, tc.wantContent = WorkspacePathKindWorkspace, "report.txt", "WORKSPACE REPORT"
+			}
 			read, err := os.ReadFile(tc.path)
 			if err != nil || string(read) != tc.wantContent {
 				t.Fatalf("os.ReadFile(%q) = %q, %v; want %q", tc.path, read, err, tc.wantContent)

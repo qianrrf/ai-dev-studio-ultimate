@@ -67,7 +67,19 @@ jobs:
         working-directory: backend
         env:
           skip_global_compinit: "1"
-        run: go test -race -count=1 -timeout=50m ./...
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell.exe -NoProfile -Command '. ../scripts/ultimate/prepare-windows-test-process.ps1; go test -race -json -count=1 -timeout=15m ./... 2>&1 | Tee-Object backend-results.jsonl; exit $LASTEXITCODE'
+          else
+            go test -race -json -count=1 -timeout=15m ./... | tee backend-results.jsonl
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: backend-results-${{ runner.os }}
+          path: backend/backend-results.jsonl
       - name: Check generated API
         if: ${{ !cancelled() }}
         working-directory: backend

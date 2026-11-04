@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -78,7 +79,11 @@ func TestReviewCommandUsesReadOnlySandbox(t *testing.T) {
 
 func TestReviewCommandEmitsConfiguredCodexEffort(t *testing.T) {
 	binDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(binDir, "codex"), []byte("#!/bin/sh\n"), 0o700); err != nil {
+	name := "codex"
+	if runtime.GOOS == "windows" {
+		name += ".cmd"
+	}
+	if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", binDir)

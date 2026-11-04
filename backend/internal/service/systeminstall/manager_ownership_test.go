@@ -279,6 +279,9 @@ func TestNPMPrefixOwningBinaryFindsPrefixesOutsideDaemonNPM(t *testing.T) {
 		bin := filepath.Join(prefix, "bin", "pi")
 		linkBinary(t, bin, entry)
 		node, cli := filepath.Join(prefix, "bin", "node"), filepath.Join(prefix, "lib", "node_modules", "npm", "bin", "npm-cli.js")
+		if runtime.GOOS == "windows" {
+			node, cli = filepath.Join(prefix, "node.exe"), filepath.Join(prefix, "node_modules", "npm", "bin", "npm-cli.js")
+		}
 		for _, file := range []string{node, cli} {
 			if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 				t.Fatal(err)

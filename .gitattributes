@@ -4,3 +4,5 @@ frontend/src/api/schema.ts text eol=lf
 frontend/src/renderer/routeTree.gen.ts text eol=lf
 # Vite imports this executable module; its shebang must keep an LF terminator.
 frontend/scripts/build-mac-dmg.mjs text eol=lf
+# Provider manifests verify the exact SHA-256 of these shipped blobs.
+pricing/catalog/**/*.json text eol=lf

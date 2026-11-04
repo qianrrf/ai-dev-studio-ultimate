@@ -1236,6 +1236,9 @@ func TestDeferredCodexTerminalDispatchesTaskOnlyOnNotify(t *testing.T) {
 	t.Setenv("AO_RUN_FILE", filepath.Join(t.TempDir(), "running.json"))
 	// Resolve a harmless binary; no provider process is started by fakeRuntime.
 	bin := filepath.Join(t.TempDir(), "codex")
+	if runtime.GOOS == "windows" {
+		bin += ".cmd"
+	}
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}

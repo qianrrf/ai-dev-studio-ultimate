@@ -1636,8 +1636,9 @@ func TestPluginLanguagePackRoutesMatchNativeDiscovery(t *testing.T) {
 	}
 	link(pack("en"), filepath.Join(external, "bundled", "review-pack"))
 	link(filepath.Join(external, "target"), filepath.Join(workspace, "link"))
-	if err := hooks(t.TempDir(), workspace, map[string]string{"HERMES_BUNDLED_PLUGINS": "link/../bundled"}); err == nil {
-		t.Error("HERMES_BUNDLED_PLUGINS through link/.. accepted")
+	if err := hooks(t.TempDir(), workspace, map[string]string{"HERMES_BUNDLED_PLUGINS": "link/../bundled"}); (err != nil) != (runtime.GOOS != "windows") {
+		// Win32 collapses link/.. before following the link, reaching no pack.
+		t.Errorf("HERMES_BUNDLED_PLUGINS through link/..: %v", err)
 	}
 	// Unset (t.Setenv above restores it), so a secret source cannot gap-fill it.
 	if err := os.Unsetenv("HERMES_BUNDLED_PLUGINS"); err != nil {

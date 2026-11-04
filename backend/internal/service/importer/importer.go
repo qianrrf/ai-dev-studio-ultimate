@@ -834,8 +834,18 @@ func normalizeImportGitPath(base, reported string) string {
 
 func comparableImportPath(path string) string {
 	clean := filepath.Clean(path)
-	if resolved, err := filepath.EvalSymlinks(clean); err == nil {
-		clean = resolved
+	// Missing children still inherit their existing parent's canonical spelling.
+	for ancestor := clean; ; ancestor = filepath.Dir(ancestor) {
+		if resolved, err := filepath.EvalSymlinks(ancestor); err == nil {
+			suffix, relErr := filepath.Rel(ancestor, clean)
+			if relErr == nil {
+				return filepath.Join(resolved, suffix)
+			}
+			break
+		}
+		if filepath.Dir(ancestor) == ancestor {
+			break
+		}
 	}
 	return filepath.Clean(clean)
 }

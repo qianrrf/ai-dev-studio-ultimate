@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
@@ -117,6 +118,10 @@ func relativeWithinRoot(root, target string) (string, bool) {
 // /elsewhere/file, not root/file. Once a component does not exist the rest is
 // joined as written, since a missing directory holds no links to follow.
 func resolveInFilesystemOrder(absolute string) string {
+	if runtime.GOOS == "windows" {
+		// Win32 normalizes dot segments before following directory links.
+		absolute = filepath.Clean(absolute)
+	}
 	volume := filepath.VolumeName(absolute)
 	resolved := volume + string(filepath.Separator)
 	parts := strings.FieldsFunc(absolute[len(volume):], func(r rune) bool { return r == '/' || r == filepath.Separator })
