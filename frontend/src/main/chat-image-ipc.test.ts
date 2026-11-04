@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import path from "node:path";
 import { chatImageFileName, fetchChatImage, MAX_CHAT_IMAGE_BYTES, registerChatImageIpc } from "./chat-image-ipc";
 
 function session(response: Response) {
@@ -79,7 +80,7 @@ describe("registerChatImageIpc", () => {
 		const bytes = new Uint8Array([9]);
 		const saved = setup({ canceled: false, filePath: "/tmp/shot.png" });
 		await expect(saved.registered.get("chatImage:save")?.({}, { name: "../shot.png", bytes })).resolves.toBe(true);
-		expect(saved.dialog.showSaveDialog).toHaveBeenCalledWith({ defaultPath: "/Users/me/Downloads/shot.png" });
+		expect(saved.dialog.showSaveDialog).toHaveBeenCalledWith({ defaultPath: path.join("/Users/me/Downloads", "shot.png") });
 		expect(saved.write).toHaveBeenCalledExactlyOnceWith("/tmp/shot.png", bytes);
 		const canceled = setup({ canceled: true });
 		await expect(canceled.registered.get("chatImage:save")?.({}, { name: "shot.png", bytes })).resolves.toBe(false);

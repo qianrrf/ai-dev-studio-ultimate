@@ -2906,7 +2906,7 @@ export function getMacInstallBlocker(): string | undefined {
   // ancestor directory whose permissions say nothing about installability, so
   // fail open rather than guess from it.
   if (!bundle.endsWith(".app")) return undefined;
-  if (bundle.includes("/AppTranslocation/")) {
+  if (bundle.split(path.sep).includes("AppTranslocation")) {
     return (
       "macOS is running Orchestrator from a temporary read-only location " +
       "because it was opened straight from where it was downloaded. Quit the app, " +

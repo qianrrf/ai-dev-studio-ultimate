@@ -30,9 +30,10 @@ describe("firstExecutable", () => {
 	it("finds an executable binary in a searched directory", async () => {
 		const dir = await tempDir();
 		const bin = path.join(dir, "claude");
-		await writeFile(bin, "#!/bin/sh\n");
-		await chmod(bin, 0o755);
-		expect(await firstExecutable("claude", [dir])).toBe(bin);
+		const executable = process.platform === "win32" ? `${bin}.cmd` : bin;
+		await writeFile(executable, "#!/bin/sh\n");
+		await chmod(executable, 0o755);
+		expect(await firstExecutable("claude", [dir])).toBe(executable);
 	});
 
 	it("returns null when no directory contains the binary", async () => {
@@ -52,11 +53,17 @@ describe("firstExecutable", () => {
 		const first = await tempDir();
 		const second = await tempDir();
 		for (const dir of [first, second]) {
-			const bin = path.join(dir, "codex");
+			const bin = path.join(dir, process.platform === "win32" ? "codex.cmd" : "codex");
 			await writeFile(bin, "#!/bin/sh\n");
 			await chmod(bin, 0o755);
 		}
-		expect(await firstExecutable("codex", ["", first, first, second])).toBe(path.join(first, "codex"));
+		expect(await firstExecutable("codex", ["", first, first, second])).toBe(path.join(first, process.platform === "win32" ? "codex.cmd" : "codex"));
+	});
+
+	it("does not select a directory named like a binary", async () => {
+		const dir = await tempDir();
+		await mkdir(path.join(dir, process.platform === "win32" ? "claude.cmd" : "claude"));
+		expect(await firstExecutable("claude", [dir])).toBeNull();
 	});
 });
 

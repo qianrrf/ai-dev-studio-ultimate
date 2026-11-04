@@ -58,7 +58,7 @@ it("acknowledges only the new process running the expected version and bundle", 
 	expect(await acknowledgeMacUpdateRestart({ ...options, appPath: "/Downloads/Agent Orchestrator.app" })).toBe(false);
 	expect(await acknowledgeMacUpdateRestart(options)).toBe(true);
 	const complete = JSON.parse(await readFile(path.join(await attemptPath(), "complete.json"), "utf8"));
-	expect(complete).toMatchObject({ version: "2.0.0", appPath, pid: process.pid + 1, parentPID: process.pid });
+	expect(complete).toMatchObject({ version: "2.0.0", appPath: path.resolve(appPath), pid: process.pid + 1, parentPID: process.pid });
 });
 
 it("ignores old, future and malformed attempts without preventing app startup", async () => {

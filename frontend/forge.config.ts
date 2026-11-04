@@ -145,10 +145,11 @@ const DICTATION_HELPER_PATHS = [
 const DICTATION_HELPER_ENTITLEMENTS = ["com.apple.security.device.audio-input"];
 
 export function macSignOptionsForFile(filePath: string): { entitlements?: string[] } {
-	if (DICTATION_HELPER_PATHS.some((helper) => filePath.endsWith(helper))) return { entitlements: DICTATION_HELPER_ENTITLEMENTS };
+	const normalized = filePath.replaceAll("\\", "/");
+	if (DICTATION_HELPER_PATHS.some((helper) => normalized.endsWith(helper))) return { entitlements: DICTATION_HELPER_ENTITLEMENTS };
 	// Cheap gate first: optionsForFile is invoked for every Mach-O in the
 	// bundle, and only the nested Node path can need an override.
-	if (!filePath.endsWith(ACP_RUNTIME_NODE_PATH)) return {};
+	if (!normalized.endsWith(ACP_RUNTIME_NODE_PATH)) return {};
 	// Fail closed: an unreadable or unparseable binary throws out of
 	// optionsForFile and aborts the signing pass. Never fall back to
 	// process.arch or to "no entitlements" — silently signing the Intel Node

@@ -60,7 +60,7 @@ export function decideRelocation(inputs: RelocationInputs): RelocationAction {
 
 /** Path the running bundle would occupy under /Applications. */
 export function installedBundlePath(runningBundlePath: string): string {
-	return path.join(APPLICATIONS_DIR, path.basename(runningBundlePath));
+	return path.posix.join(APPLICATIONS_DIR, path.posix.basename(runningBundlePath));
 }
 
 /**

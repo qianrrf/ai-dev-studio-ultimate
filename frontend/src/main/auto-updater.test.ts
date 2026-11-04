@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { EventEmitter } from "node:events";
 import semver from "semver";
@@ -3710,14 +3710,21 @@ describe("quitAndInstallUpdate", () => {
 
   it.each(["bundle", "parent"])("rejects an unwritable %s without quitting", async (location) => {
     const { root, bundle, execPath } = makeBundle();
-    chmodSync(location === "bundle" ? bundle : root, 0o555);
+    // Exercise the macOS access error even when the test host has no POSIX modes.
+    const blocked = location === "bundle" ? bundle : root;
+    const fs = await import("node:fs");
+    const realAccess = fs.accessSync;
+    vi.doMock("node:fs", () => ({ ...fs, accessSync: (candidate: string, mode: number) => {
+      if (candidate === blocked) throw Object.assign(new Error("not writable"), { code: "EACCES" });
+      return realAccess(candidate, mode);
+    } }));
     const restore = stubProcess("darwin", execPath);
     try {
       const { module, autoUpdater } = await importAutoUpdater(undefined, { nativeReadyManually: true });
       await expect(module.quitAndInstallUpdate()).rejects.toThrow(/writ/);
       expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
     } finally {
-      restore(); chmodSync(root, 0o755); chmodSync(bundle, 0o755);
+      restore(); vi.doUnmock("node:fs");
       rmSync(root, { recursive: true, force: true });
     }
   });

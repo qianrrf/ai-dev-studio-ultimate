@@ -60,7 +60,7 @@ export function useStartGitHubAuthTerminal() {
 		mutationFn: async (): Promise<ShellTerminal> => {
 			// Renderer state is lost on reload, while daemon-owned login PTYs survive.
 			// Reconcile before every start and fail without spawning if the list fails.
-			const terminals = await queryClient.fetchQuery({ ...shellTerminalsQueryOptions, staleTime: 0 });
+			const terminals = await queryClient.fetchQuery({ ...shellTerminalsQueryOptions, staleTime: 0, retry: false });
 			const existing = terminals.find((terminal) => terminal.title === "Connect GitHub" && !terminal.sessionId && !terminal.projectId);
 			if (existing) return existing;
 			const { data, error } = await apiClient.POST("/api/v1/system/github-auth/terminal");

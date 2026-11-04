@@ -257,7 +257,7 @@ export default defineConfig({
 		// vitest's default "**/node_modules/**" and only matches the root.
 		// The docs site is its own package with its own Vitest config and
 		// dependencies; the docs CI step runs its tests.
-		exclude: ["**/node_modules/**", "dist/**", "dist-electron/**", "e2e/**", "src/docs/**"],
+		exclude: ["**/node_modules/**", "dist/**", "dist-electron/**", "e2e/**", "src/docs/**", ...(process.platform === "win32" ? ["**/*.posix.test.*"] : [])],
 		globals: true,
 		setupFiles: "./src/renderer/test/setup.ts",
 	},

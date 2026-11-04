@@ -59,7 +59,7 @@ describe("Electron main Sentry configuration", () => {
 		expect(options).toMatchObject({
 			dsn: DEFAULT_ELECTRON_SENTRY_DSN,
 			transport: sdkTransport,
-			transportOptions: { queuePath: "/tmp/ao-electron-test/sentry/queue", shouldSend: expect.any(Function), shouldStore: expect.any(Function) },
+			transportOptions: { queuePath: path.join("/tmp/ao-electron-test", "sentry", "queue"), shouldSend: expect.any(Function), shouldStore: expect.any(Function) },
 			ipcMode: 0,
 			defaultIntegrations: [],
 			maxBreadcrumbs: 0,

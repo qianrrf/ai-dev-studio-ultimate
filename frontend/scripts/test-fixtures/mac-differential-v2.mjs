@@ -1,11 +1,9 @@
 import { createHash, generateKeyPairSync } from "node:crypto";
-import { createRequire } from "node:module";
 import { mkdtempSync, readFileSync, writeFileSync, utimesSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateMacV2Assets } from "../mac-differential-v2.mjs";
-const require = createRequire(import.meta.url);
-const { zipSync } = require("cross-zip");
+import { writeFixtureZip as zipSync } from "./zip.mjs";
 
 export async function macV2Fixture(arches = ["arm64", "x64"]) {
   const dir = mkdtempSync(join(tmpdir(), "ao-v2-fixture-"));

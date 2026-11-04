@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn, type SpawnOptions } from "node:child_process";
 import { constants as fsConstants } from "node:fs";
-import { access, chmod, lstat, mkdtemp, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { access, chmod, lstat, mkdtemp, mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -96,7 +96,7 @@ function knownBinDirs(): string[] {
 }
 
 export async function firstExecutable(name: string, dirs: readonly string[]): Promise<string | null> {
-	const names = process.platform === "win32" ? [`${name}.cmd`, `${name}.exe`, name] : [name];
+	const names = process.platform === "win32" ? [`${name}.cmd`, `${name}.exe`] : [name];
 	const seen = new Set<string>();
 	for (const dir of dirs) {
 		if (!dir || seen.has(dir)) continue;
@@ -105,6 +105,7 @@ export async function firstExecutable(name: string, dirs: readonly string[]): Pr
 			const candidate = path.join(dir, candidateName);
 			try {
 				await access(candidate, fsConstants.X_OK);
+				if (!(await stat(candidate)).isFile()) continue;
 				return candidate;
 			} catch {
 				// keep looking

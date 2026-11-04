@@ -202,7 +202,7 @@ export async function retireStaleAppCopies(dependencies: RetirementDependencies)
 
 export async function retireStaleMacAppCopies(options: MacRetirementOptions): Promise<void> {
 	if (options.platform !== "darwin" || !options.isPackaged) return;
-	if (path.resolve(options.runningPath) !== MAINTAINED_MAC_APP_PATH) return;
+	if (path.resolve(options.runningPath) !== path.resolve(MAINTAINED_MAC_APP_PATH)) return;
 	if (semver.valid(options.runningVersion) === null) return;
 
 	await retireStaleAppCopies({

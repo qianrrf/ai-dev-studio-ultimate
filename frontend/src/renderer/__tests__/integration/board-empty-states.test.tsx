@@ -338,6 +338,7 @@ describe("global board first launch", () => {
 			renderBoard(<GitHubSetupPanel onReady={vi.fn()} />);
 			await userEvent.click(await screen.findByRole("button", { name: "Sign in with GitHub" }));
 			expect(await screen.findByRole("alert")).toHaveTextContent("Terminal list unavailable");
+			expect(getMock.mock.calls.filter(([url]) => url === "/api/v1/shell-terminals")).toHaveLength(1);
 			expect(postMock).not.toHaveBeenCalled();
 		});
 

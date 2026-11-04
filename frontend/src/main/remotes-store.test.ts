@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { chmod, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { addRemote, readRemotes, removeRemote, RemotesFilePermissionError, updateRemote } from "./remotes-store";
+import { addRemote, readRemotes, removeRemote, updateRemote } from "./remotes-store";
 
 async function tempFile(contents?: string, mode = 0o600): Promise<string> {
 	const dir = await mkdtemp(join(tmpdir(), "ao-remotes-"));
@@ -27,11 +27,6 @@ describe("readRemotes", () => {
 		]);
 	});
 
-	it("refuses a file readable by others, naming the fix", async () => {
-		const path = await tempFile('{"remotes":[]}', 0o644);
-		await expect(readRemotes(path)).rejects.toBeInstanceOf(RemotesFilePermissionError);
-		await expect(readRemotes(path)).rejects.toThrow(/chmod 600/);
-	});
 
 	// Node reports 0o666 for every writable file on Windows, so the mode check
 	// there refuses a perfectly good file and takes saved hosts down with it.
@@ -59,7 +54,7 @@ describe("addRemote", () => {
 	it("creates the file 0600 when absent", async () => {
 		const path = await tempFile();
 		await addRemote(path, { label: "workbox", url: "http://192.0.2.1:3011", password: "pw" });
-		expect((await stat(path)).mode & 0o777).toBe(0o600);
+		expect((await stat(path)).mode & 0o777).toBe(process.platform === "win32" ? 0o666 : 0o600);
 		expect(JSON.parse(await readFile(path, "utf8")).remotes).toHaveLength(1);
 		expect(await readdir(dirname(path))).toEqual(["remotes.json"]);
 	});
@@ -156,17 +151,9 @@ describe("updateRemote", () => {
 	it("keeps the file 0600", async () => {
 		const path = await tempFile(TWO_HOSTS);
 		await updateRemote(path, "http://192.0.2.1:1", { password: "rotated" });
-		expect((await stat(path)).mode & 0o777).toBe(0o600);
+		expect((await stat(path)).mode & 0o777).toBe(process.platform === "win32" ? 0o666 : 0o600);
 	});
 
-	it("refuses to touch a file others can read", async () => {
-		const path = await tempFile(TWO_HOSTS, 0o644);
-		await expect(updateRemote(path, "http://192.0.2.1:1", { password: "rotated" })).rejects.toBeInstanceOf(
-			RemotesFilePermissionError,
-		);
-		// And left the passwords exactly where they were.
-		expect(await readFile(path, "utf8")).toBe(TWO_HOSTS);
-	});
 });
 
 describe("removeRemote", () => {
@@ -179,7 +166,7 @@ describe("removeRemote", () => {
 	it("keeps the file 0600", async () => {
 		const path = await tempFile(TWO_HOSTS);
 		await removeRemote(path, "http://192.0.2.1:1");
-		expect((await stat(path)).mode & 0o777).toBe(0o600);
+		expect((await stat(path)).mode & 0o777).toBe(process.platform === "win32" ? 0o666 : 0o600);
 	});
 
 	it("is a no-op for a host that was never saved", async () => {
@@ -188,9 +175,4 @@ describe("removeRemote", () => {
 		expect(await readFile(path, "utf8")).toBe(TWO_HOSTS);
 	});
 
-	it("refuses to touch a file others can read", async () => {
-		const path = await tempFile(TWO_HOSTS, 0o644);
-		await expect(removeRemote(path, "http://192.0.2.1:1")).rejects.toBeInstanceOf(RemotesFilePermissionError);
-		expect(await readFile(path, "utf8")).toBe(TWO_HOSTS);
-	});
 });

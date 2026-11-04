@@ -25,6 +25,7 @@ const approvedLiterals: Record<string, readonly string[]> = {
 		"https://github.com/owner/repo", "GitHub PAT",
 	],
 	"components/DaemonStartupLoader.tsx": ["AI Dev Studio Ultimate"],
+	"components/InstallDependencyDialog.tsx": ["git-scm.com"],
 	// Technical branch/prefix examples moved with the common settings fields.
 	"components/ProjectSettingsEditor.tsx": ["auto", "ao"],
 	// Key-cap hint beside Cancel.

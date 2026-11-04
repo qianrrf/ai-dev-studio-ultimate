@@ -1,5 +1,6 @@
 // @vitest-environment node
 import net from "node:net";
+import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, afterEach } from "vitest";
@@ -23,7 +24,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 }
 
 function tmpSocketPath(): string {
-	return path.join(os.tmpdir(), `ao-svlink-test-${process.pid}-${Date.now()}.sock`);
+	const name = `ao-svlink-test-${process.pid}-${randomUUID()}`;
+	return process.platform === "win32" ? `\\\\.\\pipe\\${name}` : path.join(os.tmpdir(), `${name}.sock`);
 }
 
 // Promisify: resolves the next time server.on("connection") fires.

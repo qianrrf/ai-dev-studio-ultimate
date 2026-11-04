@@ -670,13 +670,13 @@ describe("resolveCloudAuthDir", () => {
     const home = "/Users/someone";
     const first = resolveCloudAuthDir({ AO_DATA_DIR: "/tmp/ao/alice" }, home, "/work", false);
     const second = resolveCloudAuthDir({ AO_DATA_DIR: "/tmp/ao/bob" }, home, "/work", false);
-    expect(first).toBe("/tmp/ao/alice");
-    expect(second).toBe("/tmp/ao/bob");
-    expect(resolveCloudAuthDir({ AO_DATA_DIR: " relative/data " }, home, "/work", true)).toBe("/work/relative/data");
+    expect(first).toBe(path.resolve("/work", "/tmp/ao/alice"));
+    expect(second).toBe(path.resolve("/work", "/tmp/ao/bob"));
+    expect(resolveCloudAuthDir({ AO_DATA_DIR: " relative/data " }, home, "/work", true)).toBe(path.resolve("/work", "relative/data"));
   });
 
   it("uses ~/.ao for a packaged build and ~/.ao/dev for a development build", () => {
-    expect(resolveCloudAuthDir({}, "/Users/someone", "/work", true)).toBe("/Users/someone/.ao");
-    expect(resolveCloudAuthDir({ AO_DATA_DIR: "  " }, "/Users/someone", "/work", false)).toBe("/Users/someone/.ao/dev");
+    expect(resolveCloudAuthDir({}, "/Users/someone", "/work", true)).toBe(path.join("/Users/someone", ".ao"));
+    expect(resolveCloudAuthDir({ AO_DATA_DIR: "  " }, "/Users/someone", "/work", false)).toBe(path.join("/Users/someone", ".ao", "dev"));
   });
 });

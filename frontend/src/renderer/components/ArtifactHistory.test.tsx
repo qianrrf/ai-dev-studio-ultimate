@@ -121,10 +121,12 @@ describe("ArtifactHistoryMenu", () => {
 describe("formatVersionTime", () => {
 	it("names today and yesterday and dates anything older", () => {
 		const now = new Date(2026, 9, 15, 20, 0);
-		expect(formatVersionTime(new Date(2026, 9, 15, 8, 31).toISOString(), now)).toMatch(/^Today, /);
-		expect(formatVersionTime(new Date(2026, 9, 14, 8, 31).toISOString(), now)).toMatch(/^Yesterday, /);
-		// Day and month order follow the system locale.
-		expect(formatVersionTime(new Date(2026, 9, 11, 8, 31).toISOString(), now)).toMatch(/^(Oct 11|11 Oct), /);
+		const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+		const capitalized = (value: string) => value.charAt(0).toLocaleUpperCase() + value.slice(1);
+		expect(formatVersionTime(new Date(2026, 9, 15, 8, 31).toISOString(), now)).toMatch(new RegExp(`^${capitalized(relative.format(0, "day"))}, `));
+		expect(formatVersionTime(new Date(2026, 9, 14, 8, 31).toISOString(), now)).toMatch(new RegExp(`^${capitalized(relative.format(-1, "day"))}, `));
+		const older = new Date(2026, 9, 11, 8, 31);
+		expect(formatVersionTime(older.toISOString(), now)).toBe(`${capitalized(older.toLocaleDateString(undefined, { day: "numeric", month: "short" }))}, ${older.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`);
 		expect(formatVersionTime("not a date", now)).toBe("");
 	});
 });

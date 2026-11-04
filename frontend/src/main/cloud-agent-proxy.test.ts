@@ -112,7 +112,7 @@ describe("cloud agent proxy", () => {
 		expect(proxy.isAgentBrowserUrl(agent.href)).toBe(true);
 		expect(proxy.isAgentBrowserUrl(`${agent.origin}/download/x`)).toBe(false);
 		expect(proxy.isAgentBrowserUrl(agent.href.replace(agent.hostname, `ao-preview-${"0".repeat(32)}.localhost`))).toBe(false);
-		expect((await stat(path.join(dataDir, "cloud-agent-browser.key"))).mode & 0o777).toBe(0o600);
+		expect((await stat(path.join(dataDir, "cloud-agent-browser.key"))).mode & 0o777).toBe(process.platform === "win32" ? 0o666 : 0o600);
 	});
 
 	it("gives no agent browser when the sandbox has none, the control plane is unreachable, or no one is signed in", async () => {

@@ -45,7 +45,7 @@ describe("remotesFilePath", () => {
 	it("keeps an isolated AO_DATA_DIR out of the real home credentials", () => {
 		vi.stubEnv("AO_DATA_DIR", "/tmp/ao-remote-proof");
 		try {
-			expect(remotesFilePath()).toBe("/tmp/ao-remote-proof/remotes.json");
+			expect(remotesFilePath()).toBe(join("/tmp/ao-remote-proof", "remotes.json"));
 		} finally {
 			vi.unstubAllEnvs();
 		}

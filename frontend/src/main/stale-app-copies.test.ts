@@ -19,8 +19,8 @@ import {
 
 const RUNNING_PATH = "/Applications/Agent Orchestrator.app";
 const RUNNING_VERSION = "0.13.1-nightly.202609121623";
-const DOWNLOADS_COPY = "/Users/user/Downloads/Agent Orchestrator.app";
-const DESKTOP_COPY = "/Users/user/Desktop/Agent Orchestrator.app";
+const DOWNLOADS_COPY = path.join("/Users/user", "Downloads", "Agent Orchestrator.app");
+const DESKTOP_COPY = path.join("/Users/user", "Desktop", "Agent Orchestrator.app");
 const STAGED_PATH = "/Users/user/Downloads/Agent Orchestrator.app.ao-retiring-test";
 const ORIGINAL_IDENTITY = { device: 1, inode: 10 };
 
