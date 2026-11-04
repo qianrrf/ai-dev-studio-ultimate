@@ -171,7 +171,7 @@ jobs:
             frontend/test-results
   windows-installer:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -200,3 +200,33 @@ jobs:
           name: ai-dev-studio-ultimate-windows-x64
           path: frontend/out/make/**/*.exe
           if-no-files-found: error
+      - name: Check out fixed upstream for installer coexistence
+        uses: actions/checkout@v4
+        with:
+          ref: b325d24b741297bf89296e76501d7e09018c4a04
+          path: upstream-baseline
+      - name: Build original upstream installer on disposable account
+        working-directory: upstream-baseline/frontend
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          npm ci --prefix ../packages/product-ui
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run make
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify both installers, simultaneous startup and independent uninstalls
+        run: |
+          $productInstaller = (Get-ChildItem frontend/out/make -Filter '*.exe').FullName
+          $upstreamInstaller = (Get-ChildItem upstream-baseline/frontend/out/make -Filter '*.exe').FullName
+          node scripts/ultimate/verify-installer-coexistence.cjs $productInstaller $upstreamInstaller (Join-Path $env:RUNNER_TEMP 'installer-coexistence')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: windows-installer-coexistence
+          path: |
+            ${{ runner.temp }}/installer-coexistence/coexistence-result.json
+            ${{ runner.temp }}/installer-coexistence/*/desktop.log
+            ${{ runner.temp }}/installer-coexistence/*/desktop.png
