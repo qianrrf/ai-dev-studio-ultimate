@@ -1,14 +1,14 @@
-# AI Dev Studio Ultimate 0.1.0-alpha.1 使用说明
+# AI Dev Studio Ultimate 0.1.0-alpha.2 使用说明
 
-这是未签名的 Windows x64 候选测试版。安装包生成和测试安装已验证，完整发布门槛尚未全部通过。具体状态见 [交付记录](delivery.zh-CN.md) 和 [安装验收](installer-validation.md)。
+这是未签名的 Windows x64 候选测试版。安装包生成和测试安装已验证，完整发布门槛尚未全部通过。具体状态见 [交付记录](delivery.zh-CN.md) 和 [alpha 2 验收记录](alpha2-acceptance.md)。
 
 ## 安装与启动
 
-1. 对照随包 `SHA256SUMS.txt` 校验安装器，再运行 `AI Dev Studio Ultimate Setup 0.1.0-alpha.1.exe`。未签名是本轮已约定的交付方式；不要把构建日志中的 signing 字样当作数字签名通过。
+1. 对照随包 `SHA256SUMS.txt` 校验安装器，再运行 `AI Dev Studio Ultimate Setup 0.1.0-alpha.2.exe`。未签名是本轮已约定的交付方式；不要把构建日志中的 signing 字样当作数字签名通过。
 2. 通过开始菜单或安装目录的 `ai-dev-studio-ultimate.exe` 启动。默认后台端口为 31338；占用时会显示启动失败及绑定错误，不自动换端口。
 3. 打开一个可信本机 Git 仓库。首版每项目一个仓库；先使用较短路径，保留提交和备份。不要导入产品数据目录或原版 `.ao` 目录。
 4. 保持 Codex 原有中转站配置和 DSH 原有账户。产品不会改用官方 OAuth，也不保存或复制这些账户凭据到交付目录。
-5. 初次真实使用会消耗你的模型账户额度。本轮开发联调的 20 次额度已耗尽，交付验证没有继续调用模型。
+5. 初次真实使用会消耗你的模型账户额度。本轮开发联调累计 40 回合已登记用完；不会在未追加授权时继续真实模型验证。
 
 默认数据根目录是 `%USERPROFILE%\.ai-dev-studio-ultimate`，与原版 `%USERPROFILE%\.ao` 分开。里面包括后台数据库、运行发现文件、Worktree、日志和 Electron 配置。不要删除有未保存修改的 Worktree。
 

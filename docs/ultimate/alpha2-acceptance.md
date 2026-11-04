@@ -139,8 +139,11 @@ The current user has not installed the original upstream application. Its
 portable coexistence evidence cannot substitute for two installed products.
 The new CI installer check builds the fixed original baseline and installs both
 NSIS packages on a disposable Windows runner. It checks simultaneous startup,
-default ports 31337/31338, distinct profiles/protocols/shortcuts, and uninstalling
-each while the other remains available. That new check is **not yet verified**.
+default ports 3001/31338, distinct profiles/protocols/shortcuts, and uninstalling
+each while the other remains available. The first run exposed an incorrect
+test expectation of upstream port 31337: actual fixed-baseline source and startup
+both use 3001. The corrected test retains the distinct/default-port assertions;
+the complete coexistence check is **not yet verified**.
 
 Delivery remains blocked on the long-root Git path, final complete CI and
 symlink results, two-installer coexistence, and the unexercised live recovery /

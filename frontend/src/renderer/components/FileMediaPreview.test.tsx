@@ -10,7 +10,15 @@ vi.mock("../hooks/useHostConnection", () => ({
 }));
 
 vi.mock("pdfjs-dist/build/pdf.worker.min.mjs?url", () => ({ default: "pdf.worker.js" }));
-vi.mock("pdfjs-dist", () => ({ GlobalWorkerOptions: {}, getDocument: vi.fn(), TextLayer: class {} }));
+const { renderText, cancelText } = vi.hoisted(() => ({ renderText: vi.fn(async () => {}), cancelText: vi.fn() }));
+vi.mock("pdfjs-dist", () => ({
+	GlobalWorkerOptions: {},
+	getDocument: vi.fn(),
+	TextLayer: class {
+		render = renderText;
+		cancel = cancelText;
+	},
+}));
 
 describe("FileMediaPreview", () => {
 	afterEach(() => {
@@ -100,6 +108,8 @@ describe("FileMediaPreview", () => {
 	});
 
 	it("renders a cloud PDF's pages from bytes read through the main process", async () => {
+		renderText.mockClear();
+		cancelText.mockClear();
 		const bytes = new Uint8Array([37, 80, 68, 70]);
 		const fetchFile = vi.spyOn(aoBridge.cloudArtifact, "fetch").mockResolvedValue(bytes);
 		const browserFetch = vi.fn();
@@ -119,12 +129,15 @@ describe("FileMediaPreview", () => {
 		};
 		vi.mocked(getDocument).mockReturnValueOnce({ promise: Promise.resolve({ numPages: 2, getPage: async () => page }), destroy: async () => {} } as unknown as ReturnType<typeof getDocument>);
 		const source = { kind: "artifact" as const, cloud: true, rawUrl: "https://cp.test/api/cloud/v1/artifact-files/t/report.pdf?v=1" };
-		render(<FileMediaPreview kind="pdf" path="report.pdf" sessionId="session-1" source={source} version={1} />);
+		const view = render(<FileMediaPreview kind="pdf" path="report.pdf" sessionId="session-1" source={source} version={1} />);
 
 		await waitFor(() => expect(document.querySelectorAll("[data-page-number]")).toHaveLength(2));
+		await waitFor(() => expect(renderText).toHaveBeenCalledTimes(2));
 		expect(fetchFile).toHaveBeenCalledWith(source.rawUrl);
 		expect(getDocument).toHaveBeenCalledWith({ data: bytes });
 		expect(browserFetch).not.toHaveBeenCalled();
+		view.unmount();
+		expect(cancelText).toHaveBeenCalledTimes(2);
 		fetchFile.mockRestore();
 	});
 

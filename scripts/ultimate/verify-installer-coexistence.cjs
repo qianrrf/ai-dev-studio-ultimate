@@ -18,7 +18,7 @@ fs.mkdirSync(upstreamState);
 fs.writeFileSync(path.join(upstreamState, 'update-settings.json'), JSON.stringify({ enabled: false, channel: 'latest', nightlyAck: false, feature: null }));
 const apps = [
   { id: 'product', name: 'AI Dev Studio Ultimate', exe: 'ai-dev-studio-ultimate.exe', protocol: 'ai-dev-studio-ultimate', installer: productInstaller, port: 31338, debug: 31362 },
-  { id: 'upstream', name: 'Orchestrator.inc', exe: 'agent-orchestrator.exe', protocol: 'ao-app', installer: upstreamInstaller, port: 31337, debug: 31364 },
+  { id: 'upstream', name: 'Orchestrator.inc', exe: 'agent-orchestrator.exe', protocol: 'ao-app', installer: upstreamInstaller, port: 3001, debug: 31364 },
 ].map(app => ({ ...app, install: path.join(root, app.id, 'installed'), data: path.join(root, app.id, 'data') }));
 const report = { startedAt: new Date().toISOString(), tests: [], modelsStarted: 0 };
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -49,6 +49,7 @@ async function start(app) {
   await until(async () => (await fetch(`http://127.0.0.1:${app.debug}/json/version`)).ok, app.id + ' Chromium');
   app.browser = await chromium.connectOverCDP(`http://127.0.0.1:${app.debug}`);
   const page = await until(async () => app.browser.contexts().flatMap(context => context.pages()).find(page => page.url().startsWith('app://renderer/')), app.id + ' renderer');
+  app.page = page;
   app.status = await until(async () => { const status = await page.evaluate(() => window.ao.daemon.getStatus()); return status.state === 'ready' ? status : null; }, app.id + ' daemon');
   assert.equal(app.status.port, app.port, 'Default ports must remain distinct');
   for (const route of ['projects', 'sessions']) {
@@ -64,7 +65,8 @@ async function start(app) {
 }
 async function stop(app) {
   if (!app.browser) return;
-  try { await (await app.browser.newBrowserCDPSession()).send('Browser.close'); } catch {}
+  // Closing a window can hide it in the tray; invoke the existing Quit action.
+  try { await app.page.evaluate(() => window.ao.menu.action('app.quit')); } catch {}
   await until(() => app.child.exitCode !== null, app.id + ' exit');
   app.browser = null;
   fs.closeSync(app.log);
