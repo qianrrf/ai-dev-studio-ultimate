@@ -1,0 +1,100 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn, spawnSync } = require('node:child_process');
+const assert = require('node:assert/strict');
+const { chromium } = require(path.resolve(__dirname, '../../frontend/node_modules/playwright'));
+
+const executable = process.argv[2];
+const root = process.argv[3];
+const port = Number(process.argv[4] || 31341);
+const debugPort = Number(process.argv[5] || 31342);
+assert.ok(executable && root, 'Usage: node verify-installed-desktop.cjs <installed.exe> <new-scratch-directory> [daemon-port] [debug-port]');
+assert.ok(fs.existsSync(executable), 'Installed executable must exist');
+assert.ok(!fs.existsSync(root), 'Choose a new scratch directory; existing data is never reused');
+fs.mkdirSync(root, { recursive: true });
+const output = fs.openSync(path.join(root, 'desktop.log'), 'a');
+const env = { ...process.env, AO_DATA_DIR: path.join(root, 'data'), AO_RUN_FILE: path.join(root, 'running.json'), AO_PORT: String(port), AO_TELEMETRY_EVENTS:'0', AO_TELEMETRY_REMOTE:'off', ELECTRON_ENABLE_LOGGING:'1' };
+for (const key of ['NODE_OPTIONS','ELECTRON_RUN_AS_NODE','AO_DAEMON_COMMAND','AO_DEV_DAEMON_BINARY','AO_KEEP_DAEMON','AO_OWNER','AO_APP_RUN_ID']) delete env[key];
+delete env.Path;
+env.PATH = process.env.PATH;const child = spawn(executable, [`--remote-debugging-port=${debugPort}`, '--remote-debugging-address=127.0.0.1'], { env, windowsHide: true, stdio:['ignore',output,output] });
+const result = { executable, pid:child.pid, root, port, debugPort, startedAt:new Date().toISOString(), tests:[] };
+let browser;
+const pause = ms => new Promise(resolve => setTimeout(resolve,ms));
+async function until(fn, description, seconds=60) {
+ const end=Date.now()+seconds*1000; let last;
+ while(Date.now()<end) { try { const value=await fn(); if(value) return value; } catch(error) { last=error; } await pause(300); }
+ throw new Error(`Timeout: ${description}: ${last?.message || ''}`);
+}
+(async () => {
+ await until(async()=> (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).ok,'Chromium debug endpoint');
+ browser=await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
+ const page=await until(async()=> browser.contexts().flatMap(c=>c.pages()).find(p=>p.url().startsWith('app://renderer/')),'real renderer');
+ const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ const status=await until(async()=> { const s=await page.evaluate(()=>window.ao?.daemon.getStatus()); if(s?.state==='error') throw new Error(JSON.stringify(s)); return s?.state==='ready'?s:null; },'daemon ready');
+ assert.equal(status.port,port); result.status=status; result.tests.push('installed Electron and bundled daemon ready');
+ await page.waitForFunction(()=>!document.querySelector('[data-testid="daemon-startup-loader"]') && document.body.innerText.includes('AI Dev Studio Ultimate'));
+ result.title=await page.title(); result.rendererUrl=page.url();
+ await page.screenshot({ path:path.join(root,'desktop-renderer.png') });
+ const boundary=await page.evaluate(async()=>{
+  const settings=await window.ao.updateSettings.get();
+  await window.ao.updateSettings.set({...settings,enabled:true,channel:'nightly',nightlyAck:true});
+  const after=await window.ao.updateSettings.get();
+  const account=await window.ao.cloud.getSession();
+  return {after,account};
+ });
+ assert.equal(boundary.after.enabled,false); assert.equal(boundary.account,null);
+ result.boundaries=boundary; result.tests.push('updater remains off and cloud session absent');
+ assert.ok(fs.existsSync(path.join(root,'data','electron','Cache'))); result.tests.push('Electron profile isolated under explicit data directory');
+ const api=async(method,route,body,expected=200)=>{
+  const response=await fetch(`http://127.0.0.1:${port}/api/v1${route}`,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const text=await response.text(); assert.equal(response.status,expected,`${method} ${route}: ${text}`); return JSON.parse(text);
+ };
+ const repo=path.join(root,'中文 合成项目');
+ fs.mkdirSync(repo,{recursive:true});
+ const git=(...args)=>{const r=spawnSync('git',args,{cwd:repo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);return r.stdout.trim()};
+ if(!fs.existsSync(path.join(repo,'.git'))){git('init','-b','main');git('config','user.name','Installer validation');git('config','user.email','validation@example.invalid');
+ fs.writeFileSync(path.join(repo,'README.md'),'Synthetic installer validation; no model calls.\n');git('add','README.md');git('commit','-m','test: synthetic installer project');}
+ const cli=spawnSync(path.join(path.dirname(executable),'resources','daemon','ao.exe'),['project','add','--path',repo,'--id','package-validation','--name','安装验收','--orchestrator-agent','codex','--worker-agent','deepseek-harness'],{env,encoding:'utf8',windowsHide:true});
+ result.discovery={runFile:env.AO_RUN_FILE,exists:fs.existsSync(env.AO_RUN_FILE), files:fs.readdirSync(root)};
+ assert.equal(cli.status,0,cli.stderr);result.cliProject=cli.stdout;
+ const route='/projects/package-validation';
+ const initial=await api('GET',route+'/control');
+ const claimed=await api('PUT',route+'/control',{ownerKind:'external',ownerId:'installer-controller',expectedRevision:initial.revision});
+ assert.ok(claimed.revision>=initial.revision);
+ await api('PUT',route+'/control',{ownerKind:'external',ownerId:'stale-controller',expectedRevision:initial.revision},409);
+ const brief={id:'installer-intake-1',brief:'只登记需求，不派发模型任务。'};
+ await api('POST',route+'/requests',brief,202);await api('POST',route+'/requests',brief,202);
+ const inbox=await api('GET',route+'/requests');assert.equal(inbox.requests.length,1);
+ const sessions=await api('GET','/sessions');assert.equal(sessions.sessions.length,0);
+ result.control=claimed;result.tests.push('bundled CLI registers Chinese/space Git path; CAS rejects stale revision; intake deduplicates without starting models');
+ const longRepo=path.join(root,'long-path',...Array.from({length:5},(_,i)=>`segment-${i}-${'a'.repeat(32)}`),'项目');
+ fs.mkdirSync(longRepo,{recursive:true});
+ const longGit=(...args)=>{const r=spawnSync('git',['-c','core.longpaths=true','-C',longRepo,...args],{cwd:root,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
+ try {
+  longGit('init','-b','main');longGit('config','core.longpaths','true');longGit('-c','user.name=Installer validation','-c','user.email=validation@example.invalid','commit','--allow-empty','-m','test: long path');
+  await api('POST','/projects',{path:longRepo,projectId:'long-path-validation',name:'长路径验收'},201);
+  result.longPath={characters:longRepo.length,supported:true};
+ }catch(error){result.longPath={characters:longRepo.length,supported:false,error:error.message};}
+ const before=status.pid;
+ await page.evaluate(()=>window.ao.daemon.restart());
+ const restarted=await until(async()=>{const s=await page.evaluate(()=>window.ao.daemon.getStatus());return s.state==='ready'&&s.pid!==before?s:null},'daemon restart');
+ result.restarted=restarted; result.tests.push('desktop restart reconnects to a new bundled daemon');
+ const response=await fetch(`http://127.0.0.1:${port}/api/v1/sessions`); assert.equal(response.status,200);
+ result.tests.push('sessions API available after restart');
+ assert.deepEqual(await api('GET',route+'/control'),claimed);
+ assert.equal((await api('GET',route+'/requests')).requests.length,1);
+ const released=await api('PUT',route+'/control',{ownerKind:'unowned',ownerId:'',expectedRevision:claimed.revision});
+ assert.equal(released.revision,claimed.revision+1);result.released=released;
+ result.tests.push('controller and intake persist across daemon restart; release advances revision');
+ await page.waitForFunction(()=>!document.querySelector('[data-testid="daemon-startup-loader"]') && document.body.innerText.includes('AI Dev Studio Ultimate'));
+ await page.screenshot({path:path.join(root,'desktop-after-restart.png')});
+ result.rendererErrors=errors; assert.equal(errors.length,0);
+ result.passed=true;
+})().catch(error=> { result.passed=false; result.error=error.stack; process.exitCode=1; }).finally(async()=>{
+ try { if(browser) { const session=await browser.newBrowserCDPSession(); await session.send('Browser.close'); } } catch {}
+ await pause(1500);
+ if(child.exitCode===null) spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+ fs.closeSync(output); result.completedAt=new Date().toISOString();
+ fs.writeFileSync(path.join(root,'result.json'),JSON.stringify(result,null,2));
+ console.log(JSON.stringify(result,null,2));
+});

@@ -67,11 +67,10 @@ func newStartCommand(ctx *commandContext) *cobra.Command {
 	opts := startOptions{}
 	cmd := &cobra.Command{
 		Use:   "start",
-		Short: "Fetch (if needed) and open the Agent Orchestrator desktop app",
-		Long: "Fetch (if needed) and open the Agent Orchestrator desktop app.\n\n" +
-			"The desktop app now owns the daemon, state, and updates. `ao start` no\n" +
-			"longer runs a daemon: it resolves the installed app (or downloads the\n" +
-			"latest release), opens it, and exits.",
+		Short: "Open the installed AI Dev Studio Ultimate desktop app",
+		Long: "Open the installed AI Dev Studio Ultimate desktop app.\n\n" +
+			"The desktop app owns the daemon and state. Automatic downloads and\n" +
+			"updates are disabled for this alpha; install a verified package manually.",
 		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return ctx.runStart(cmd.Context(), cmd, opts)
@@ -710,12 +709,10 @@ func (c *commandContext) openApp(ctx context.Context, appPath string) (bool, err
 	}
 }
 
-// printDeprecationNotice explains the new role of the npm `ao` binary. Keep it
-// honest: Track B (live auto-update) is not done, so it does not promise it.
+// The alpha ships a bundled CLI without a hosted installer or update feed.
 func (c *commandContext) printDeprecationNotice(w io.Writer) {
-	_, _ = fmt.Fprint(w, "Agent Orchestrator is now a desktop app, and the npm `ao` is just its launcher.\n"+
-		"The app is distributed from the website and GitHub Releases; it owns the daemon and updates itself.\n"+
-		"You can keep running `ao start` to fetch (if needed) and open it.\n")
+	_, _ = fmt.Fprint(w, "AI Dev Studio Ultimate owns the local daemon and application state.\n"+
+		"This alpha uses verified local installers; automatic downloads and updates are disabled.\n")
 }
 
 // printManualOpen tells the user how to open the bundle when `ao start` could
