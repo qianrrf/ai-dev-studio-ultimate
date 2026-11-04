@@ -568,9 +568,9 @@ func (c *conversation) openConfig(ctx context.Context, effort string, servers []
 	}
 	if runtime.GOOS == "windows" && c.disableNetwork {
 		switch resp.Config.Windows.Sandbox {
-		case "elevated", "mxc":
+		case "elevated", "mxc", "unelevated":
 		default:
-			return nil, fmt.Errorf("%w: Windows read-only review requires explicit elevated or mxc tool network isolation", ports.ErrChatUnsupported)
+			return nil, fmt.Errorf("%w: Windows read-only review requires an explicit native Windows sandbox", ports.ErrChatUnsupported)
 		}
 	}
 	disabled := func(names map[string]json.RawMessage) map[string]any {

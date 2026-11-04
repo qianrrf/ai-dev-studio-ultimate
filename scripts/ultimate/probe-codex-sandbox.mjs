@@ -39,7 +39,7 @@ createInterface({ input: child.stdout }).on('line', line => {
   const entry = pending.get(message.id);
   if (!entry) return;
   clearTimeout(entry.timer); pending.delete(message.id);
-  if (message.error) entry.reject(new Error(`${entry.method}: RPC ${message.error.code}`));
+  if (message.error) entry.reject(new Error(`${entry.method}: RPC ${message.error.code}: ${String(message.error.message || '').slice(0, 2000)}`));
   else entry.resolve(message.result);
 });
 function request(method, params) {
@@ -57,13 +57,13 @@ try {
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const commands = [
     ['read', "Get-Content -LiteralPath input.txt -ErrorAction Stop"],
-    ['write', "Set-Content -LiteralPath forbidden.txt -Value probe -ErrorAction Stop"],
+    ['write', "try { Set-Content -LiteralPath forbidden.txt -Value probe -ErrorAction Stop; Write-Output 'WRITE_SUCCEEDED' } catch [System.UnauthorizedAccessException] { Write-Output 'WRITE_DENIED_UNAUTHORIZED_ACCESS'; exit 0 }"],
     ['loopback', `$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 http://127.0.0.1:${server.address().port}/`],
   ];
   for (const [name, command] of commands) {
     try {
       const result = await request('command/exec', { command: [path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-NoProfile', '-NonInteractive', '-Command', command], cwd: workspace, sandboxPolicy: { type: 'readOnly', networkAccess: false }, timeoutMs: 10000 });
-      report.steps.push({ name, exitCode: result.exitCode, expectedMarkerRead: name === 'read' && result.stdout.includes('READ-ONLY-PROBE') });
+      report.steps.push({ name, exitCode: result.exitCode, expectedMarkerRead: name === 'read' && result.stdout.includes('READ-ONLY-PROBE'), permissionDenied: name === 'write' && result.exitCode === 0 && result.stdout.trim() === 'WRITE_DENIED_UNAUTHORIZED_ACCESS' });
     } catch (error) { report.steps.push({ name, error: error.message }); }
   }
   let fileExists = false;
@@ -71,7 +71,10 @@ try {
   report.forbiddenFileExists = fileExists;
   report.loopbackRequests = loopbackRequests;
   const [read, write, network] = report.steps;
-  report.ok = read.exitCode === 0 && read.expectedMarkerRead && Number.isInteger(write.exitCode) && write.exitCode !== 0 && Number.isInteger(network.exitCode) && network.exitCode !== 0 && !fileExists && loopbackRequests === 0;
+  report.fileReadOnlyPassed = read.exitCode === 0 && read.expectedMarkerRead && write.permissionDenied === true && !fileExists;
+  report.networkObservation = { exitCode: network.exitCode ?? null, error: network.error ?? null, loopbackRequests, blocked: Number.isInteger(network.exitCode) && network.exitCode !== 0 && loopbackRequests === 0 };
+  report.boundary = 'trusted-local; loopback isolation is not guaranteed';
+  report.ok = report.fileReadOnlyPassed;
 } catch (error) { report.ok = false; report.error = error.message; }
 finally {
   server.closeAllConnections();

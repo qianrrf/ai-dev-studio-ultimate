@@ -37,7 +37,7 @@ func TestReadOnlyReconnectVerifiesSurvivingHostSandbox(t *testing.T) {
 	}
 	d, srv := newTestDriver(t)
 	srv.replyError("initialize", -32600, "Already initialized")
-	srv.reply("config/read", `{"config":{"windows":{"sandbox":"unelevated"}}}`)
+	srv.reply("config/read", `{"config":{"windows":{"sandbox":"disabled"}}}`)
 	proc, err := d.spawn(t.Context(), "codex", t.TempDir(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -131,20 +131,25 @@ func TestReadOnlyToolInventoryFailureRefusesLaunch(t *testing.T) {
 	}
 }
 
-func TestReadOnlyRefusesWindowsSandboxWithoutToolNetworkIsolation(t *testing.T) {
+func TestReadOnlyRequiresExplicitWindowsSandbox(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows sandbox policy")
 	}
-	for _, override := range []bool{false, true} {
+	for _, sandbox := range []string{"", "disabled", "unelevated", "elevated", "mxc"} {
 		d, srv := newTestDriver(t)
 		cfg := ports.ChatStartConfig{WorkspacePath: t.TempDir(), ReadOnly: true, DisableExternalTools: true, DisableNetwork: true}
-		if override {
-			cfg.Env = map[string]string{"AO_CODEX_WINDOWS_SANDBOX": "unelevated"}
+		inventory, _ := json.Marshal(map[string]any{"config": map[string]any{"windows": map[string]any{"sandbox": sandbox}}})
+		srv.reply("config/read", string(inventory))
+		conv, err := d.Start(t.Context(), cfg)
+		if sandbox == "" || sandbox == "disabled" {
+			if !errors.Is(err, ports.ErrChatUnsupported) || srv.sentMethod("thread/start") {
+				t.Fatalf("unconfigured sandbox accepted: %v", err)
+			}
 		} else {
-			srv.reply("config/read", `{"config":{"windows":{"sandbox":"unelevated"}}}`)
-		}
-		if _, err := d.Start(t.Context(), cfg); !errors.Is(err, ports.ErrChatUnsupported) || srv.sentMethod("thread/start") {
-			t.Fatalf("unsafe sandbox accepted: %v", err)
+			if err != nil {
+				t.Fatalf("native sandbox %s: %v", sandbox, err)
+			}
+			_ = conv.Close()
 		}
 	}
 }

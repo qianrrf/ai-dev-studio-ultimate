@@ -17,6 +17,8 @@ gates. A documented capability is not a passing live test.
 
 See [source audit](source-audit.md) and [validation](validation.md).
 中文交付进展、阻塞与继续步骤见 [交付记录](delivery.zh-CN.md)。
+Remaining implementation starts from `faf97410a`; see
+[milestones and current evidence](remaining-implementation.md).
 
 ## Delivery gates
 
@@ -29,6 +31,7 @@ See [source audit](source-audit.md) and [validation](validation.md).
 4. D: product identity, state isolation, disabled upstream updates/telemetry,
    Windows installation and coexistence. No release until critical gates pass.
 
-Do not publish packages, PRs or GitHub review comments as an incidental test.
+Only the authorized private synthetic test repository may receive test PRs and
+review comments. Public releases and upstream messages remain outside scope.
 Do not label unexecuted checks as passed. Keep secrets and local run state out
 of commits.

@@ -154,7 +154,13 @@ Evidence: `dsh-approval-probe.json`, `dsh-approval-after-restart.json`,
 `dsh-controlled-exit.json`, `dsh-native-resume.json`,
 `dsh-after-native-resume.json` in the external validation directory.
 
-## Persistent read-only foundation — release gate remains blocked
+## Persistent read-only foundation — historical strict-network gate
+
+This section records the earlier stricter boundary. The accepted remaining plan
+now uses trusted-local review: native filesystem read-only remains required,
+while loopback reachability is an explicitly acknowledged limitation. See
+[current implementation evidence](remaining-implementation.md); earlier network
+failures below are preserved as observations, not current release criteria.
 
 Added the public `readOnly` session property and `ao spawn --read-only`.
 A new SQLite migration persists the immutable constraint; ordinary metadata
