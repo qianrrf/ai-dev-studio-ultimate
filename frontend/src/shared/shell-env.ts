@@ -35,7 +35,36 @@ export type ShellEnvProbe = {
 	shellPath: string;
 	args: string[];
 	encoding?: "utf8" | "utf16le";
+	windows?: boolean;
 };
+
+// Explorer can retain PATH from before an installer ran. Read the persisted
+// values without loading a PowerShell profile, then include Git's known roots.
+export function windowsPathProbe(env: Record<string, string | undefined>): ShellEnvProbe {
+	return {
+		shellPath: windowsJoin(env.SystemRoot || env.WINDIR || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+		windows: true,
+		args: ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", [
+			"[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)",
+			"$paths = @($env:Path, [Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User'))",
+			"$roots = @(@($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | ForEach-Object { Join-Path $_ 'Git' })",
+			"if ($env:LOCALAPPDATA) { $roots += Join-Path $env:LOCALAPPDATA 'Programs\\Git' }",
+			"foreach ($key in @('HKCU:\\Software\\GitForWindows', 'HKLM:\\Software\\GitForWindows', 'HKLM:\\Software\\WOW6432Node\\GitForWindows')) { $root = (Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue).InstallPath; if ($root) { $roots += $root } }",
+			"foreach ($root in $roots) { $cmd = Join-Path $root 'cmd'; if (Test-Path -LiteralPath (Join-Path $cmd 'git.exe') -PathType Leaf) { $paths += $cmd } }",
+			"$seen = @{}; $entries = foreach ($value in $paths) { foreach ($entry in ([Environment]::ExpandEnvironmentVariables([string]$value) -split ';')) { $entry = $entry.Trim().Trim('\"'); if ($entry -and !$seen.ContainsKey($entry.TrimEnd('\\', '/'))) { $seen[$entry.TrimEnd('\\', '/')] = $true; $entry } } }",
+			`Write-Output '${SHELL_ENV_SENTINEL}'`,
+			"Write-Output ('PATH=' + ($entries -join ';'))",
+		].join("; ")],
+	};
+}
+
+export function buildWindowsDaemonEnv(processEnv: NodeJS.ProcessEnv, shellEnv: Record<string, string> | null): NodeJS.ProcessEnv {
+	const merged = { ...processEnv, ...(shellEnv ?? {}) };
+	const resolvedPath = shellEnv?.PATH ?? shellEnv?.Path ?? processEnv.PATH ?? processEnv.Path;
+	for (const key of Object.keys(merged)) if (key.toUpperCase() === "PATH") delete merged[key];
+	if (resolvedPath !== undefined) merged.PATH = resolvedPath;
+	return merged;
+}
 
 function windowsDirname(value: string): string {
 	const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
@@ -124,7 +153,7 @@ export function resolveWindowsShellProbe(
 	}
 	for (const candidate of candidates) {
 		const shellPath = lookup(candidate);
-		if (shellPath) return { shellPath, args: windowsProbeArgs(shellPath), ...(windowsBasename(shellPath) === "cmd.exe" ? { encoding: "utf16le" as const } : {}) };
+		if (shellPath) return { shellPath, windows: true, args: windowsProbeArgs(shellPath), ...(windowsBasename(shellPath) === "cmd.exe" ? { encoding: "utf16le" as const } : {}) };
 	}
 	return null;
 }
@@ -224,6 +253,10 @@ export async function resolveShellEnvWithSpec(spec: ShellEnvProbe, run: ShellRun
 		const stdout = await run(spec.shellPath, spec.args, spec.encoding);
 		if (stdout == null) return null;
 		const parsed = parseEnvBlock(stdout);
+		if (spec.windows && !parsed.PATH && parsed.Path) {
+			parsed.PATH = parsed.Path;
+			delete parsed.Path;
+		}
 		return parsed.PATH ? parsed : null;
 	} catch {
 		return null;

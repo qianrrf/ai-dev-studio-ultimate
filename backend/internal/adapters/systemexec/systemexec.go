@@ -45,6 +45,12 @@ func New(dataDir string) Adapter {
 	return newAdapter(dataDir, http.DefaultClient)
 }
 
+// PrepareEnvironment restores persisted Windows executable paths before daemon
+// services or child processes start. Other platforms retain their environment.
+func PrepareEnvironment() {
+	refreshExecutablePath()
+}
+
 // PathWritable reports whether path can be created or written by the current
 // daemon user without changing the filesystem when the probe completes.
 func (Adapter) PathWritable(ctx context.Context, path string) (bool, error) {

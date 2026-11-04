@@ -140,6 +140,8 @@ import {
 	resolveShellEnv,
 	resolveShellEnvWithSpec,
 	resolveWindowsShellProbe,
+	windowsPathProbe,
+	buildWindowsDaemonEnv,
 	type ShellRunner,
 } from "./shared/shell-env";
 import { DEFAULT_TERMINAL_SHELL, type TerminalShellPreference } from "./shared/ui-locale";
@@ -1452,20 +1454,15 @@ function lookupWindowsExecutable(candidate: string): string | null {
 function ensureShellEnv(): Promise<void> {
 	if (!shellEnvPromise) {
 		if (process.platform === "win32") {
-			const probe =
-				resolveWindowsShellProbe(terminalShellPreference, process.env, lookupWindowsExecutable) ??
-				resolveWindowsShellProbe(DEFAULT_TERMINAL_SHELL, process.env, lookupWindowsExecutable);
-			if (!probe) {
-				shellEnvPromise = Promise.resolve();
-				cachedShellEnv = null;
-				return shellEnvPromise;
-			}
-			shellEnvPromise = resolveShellEnvWithSpec(probe, runLoginShell).then((resolved) => {
-				cachedShellEnv = resolved;
-				if (!resolved) {
-					console.error("AO: could not read the login-shell environment; falling back to the process environment.");
-				}
-			});
+			shellEnvPromise = (async () => {
+				const persisted = await resolveShellEnvWithSpec(windowsPathProbe(process.env), runLoginShell);
+				if (persisted?.PATH) process.env.PATH = persisted.PATH;
+				const probe =
+					resolveWindowsShellProbe(terminalShellPreference, process.env, lookupWindowsExecutable) ??
+					resolveWindowsShellProbe(DEFAULT_TERMINAL_SHELL, process.env, lookupWindowsExecutable);
+				cachedShellEnv = (probe ? await resolveShellEnvWithSpec(probe, runLoginShell) : null) ?? persisted;
+				if (!cachedShellEnv) console.error("AI Dev Studio Ultimate: could not read the Windows environment; using the process environment.");
+			})();
 			return shellEnvPromise;
 		}
 		shellEnvPromise = resolveShellEnv(process.env, runLoginShell, configuredLoginShell).then((resolved) => {
@@ -1599,7 +1596,7 @@ function daemonEnv(forceKeep = keepDaemonAlive(process.env)): NodeJS.ProcessEnv 
 	// Windows keeps its native environment semantics while overlaying values
 	// exported by the selected login-shell probe.
 	if (process.platform === "win32") {
-		return { ...process.env, ...(cachedShellEnv ?? {}), ...devExtras, ...telemetryOverrides(), ...ownerTag };
+		return { ...buildWindowsDaemonEnv(process.env, cachedShellEnv), ...devExtras, ...telemetryOverrides(), ...ownerTag };
 	}
 	return buildDaemonEnv(
 		process.env,

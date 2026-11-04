@@ -52,23 +52,28 @@ func quoteWindowsBatchArg(value string) string {
 }
 
 func refreshExecutablePath() {
-	paths := []string{os.Getenv("Path")}
-	paths = append(paths,
+	paths := []string{
+		os.Getenv("Path"),
 		registryPath(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\Session Manager\Environment`),
 		registryPath(registry.CURRENT_USER, `Environment`),
-	)
+	}
+	paths = append(paths, windowsGitPaths(os.Getenv, registryString)...)
 	if merged := mergeWindowsPath(paths...); merged != "" {
 		_ = os.Setenv("Path", merged)
 	}
 }
 
 func registryPath(root registry.Key, keyPath string) string {
+	return registryString(root, keyPath, "Path")
+}
+
+func registryString(root registry.Key, keyPath, name string) string {
 	key, err := registry.OpenKey(root, keyPath, registry.QUERY_VALUE)
 	if err != nil {
 		return ""
 	}
 	defer func() { _ = key.Close() }()
-	value, valueType, err := key.GetStringValue("Path")
+	value, valueType, err := key.GetStringValue(name)
 	if err != nil {
 		return ""
 	}
@@ -78,6 +83,33 @@ func registryPath(root registry.Key, keyPath string) string {
 		}
 	}
 	return value
+}
+
+func windowsGitPaths(env func(string) string, readRegistry func(registry.Key, string, string) string) []string {
+	roots := []string{
+		readRegistry(registry.CURRENT_USER, `Software\GitForWindows`, "InstallPath"),
+		readRegistry(registry.LOCAL_MACHINE, `Software\GitForWindows`, "InstallPath"),
+		readRegistry(registry.LOCAL_MACHINE, `Software\WOW6432Node\GitForWindows`, "InstallPath"),
+	}
+	for _, name := range []string{"ProgramFiles", "ProgramFiles(x86)"} {
+		if root := env(name); root != "" {
+			roots = append(roots, filepath.Join(root, "Git"))
+		}
+	}
+	if root := env("LOCALAPPDATA"); root != "" {
+		roots = append(roots, filepath.Join(root, "Programs", "Git"))
+	}
+	paths := make([]string, 0, len(roots))
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		dir := filepath.Join(root, "cmd")
+		if info, err := os.Stat(filepath.Join(dir, "git.exe")); err == nil && info.Mode().IsRegular() {
+			paths = append(paths, dir)
+		}
+	}
+	return paths
 }
 
 func mergeWindowsPath(values ...string) string {

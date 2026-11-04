@@ -136,6 +136,7 @@ func Run(buildVersion string) error {
 	if err != nil {
 		return err
 	}
+	systemexec.PrepareEnvironment()
 	cfg.Telemetry.AppVersion = telemetryAppVersion(cfg.Telemetry.AppVersion, buildVersion)
 	// Children inherit os.Environ(); the export settings stay in cfg only.
 	config.ScrubTelemetryEnv()

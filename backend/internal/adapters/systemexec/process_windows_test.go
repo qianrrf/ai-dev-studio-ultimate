@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/sys/windows/registry"
+
 	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
 )
 
@@ -61,5 +63,37 @@ func TestMergeWindowsPathAddsRegistryEntriesWithoutDuplicates(t *testing.T) {
 	}, ";")
 	if got != want {
 		t.Fatalf("mergeWindowsPath() = %q, want %q", got, want)
+	}
+}
+
+func TestWindowsGitPathsChecksRegistryAndStandardInstallations(t *testing.T) {
+	root := t.TempDir()
+	registered := filepath.Join(root, "custom Git")
+	programFiles := filepath.Join(root, "Program Files")
+	localData := filepath.Join(root, "用户 AppData")
+	want := []string{filepath.Join(registered, "cmd"), filepath.Join(programFiles, "Git", "cmd"), filepath.Join(localData, "Programs", "Git", "cmd")}
+	for _, dir := range want {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "git.exe"), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	env := func(key string) string {
+		return map[string]string{"ProgramFiles": programFiles, "LOCALAPPDATA": localData}[key]
+	}
+	read := func(key registry.Key, path, name string) string {
+		if key == registry.CURRENT_USER && path == `Software\GitForWindows` && name == "InstallPath" {
+			return registered
+		}
+		return filepath.Join(root, "missing")
+	}
+	got := windowsGitPaths(env, read)
+	if strings.Join(got, ";") != strings.Join(want, ";") {
+		t.Fatalf("windowsGitPaths() = %q, want %q", got, want)
+	}
+	if merged := mergeWindowsPath(want[1], strings.Join(got, ";")); !strings.HasPrefix(merged, want[1]+";") {
+		t.Fatalf("existing Git lost priority: %q", merged)
 	}
 }

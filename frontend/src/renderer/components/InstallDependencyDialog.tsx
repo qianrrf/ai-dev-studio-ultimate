@@ -214,6 +214,7 @@ export function InstallDependencyDialog({
 					{gitBlocking && git ? (
 						<IssueSection label={requirementDisplayLabel(git, t)} detail={requirementDetailText(git, t)}>
 							<p className="text-caption leading-snug text-settings-muted">{t("startup.installGitInstructions")}</p>
+							<a className="text-caption text-accent underline" href="https://git-scm.com/downloads/win" onClick={(event) => { event.preventDefault(); void aoBridge.app.openExternal("https://git-scm.com/downloads/win"); }}>git-scm.com</a>
 						</IssueSection>
 					) : null}
 

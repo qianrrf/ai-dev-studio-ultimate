@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import {
 	buildDaemonEnv,
+	buildWindowsDaemonEnv,
 	devDaemonAllowedOrigins,
 	FALLBACK_PATH_DIRS,
 	parseEnvBlock,
 	resolveShellEnv,
 	resolveShellPath,
 	resolveWindowsShellProbe,
+	resolveShellEnvWithSpec,
+	windowsPathProbe,
 	SHELL_ENV_SENTINEL,
 	type ShellRunner,
 	withFallbackPath,
@@ -227,6 +230,7 @@ describe("resolveWindowsShellProbe", () => {
 		);
 		expect(probe).toEqual({
 			shellPath: bashPath,
+			windows: true,
 			args: ["--login", "-i", "-c", expect.stringContaining(SHELL_ENV_SENTINEL)],
 		});
 	});
@@ -235,6 +239,7 @@ describe("resolveWindowsShellProbe", () => {
 		const comSpec = "C:\\Windows\\System32\\cmd.exe";
 		expect(resolveWindowsShellProbe({ kind: "cmd" }, { ComSpec: comSpec }, lookup({ [comSpec]: comSpec }))).toEqual({
 			shellPath: comSpec,
+			windows: true,
 			args: ["/d", "/u", "/s", "/c", expect.stringContaining(SHELL_ENV_SENTINEL)],
 			encoding: "utf16le",
 		});
@@ -245,5 +250,27 @@ describe("resolveWindowsShellProbe", () => {
 		const probe = resolveWindowsShellProbe({ kind: "custom", path: custom }, {}, lookup({ [custom]: custom }));
 		expect(probe?.shellPath).toBe(custom);
 		expect(probe?.args.slice(0, 2)).toEqual(["--login", "-i"]);
+	});
+});
+
+describe("Windows startup environment", () => {
+	it("does not send duplicate case variants of PATH to daemon children", () => {
+		expect(buildWindowsDaemonEnv({ Path: "old", PATH: "also old", CUSTOM: "retained" }, { PATH: "refreshed" })).toEqual({ PATH: "refreshed", CUSTOM: "retained" });
+	});
+	it("accepts the native Windows Path spelling without changing Unix parsing", async () => {
+		const run: ShellRunner = async () => `${SHELL_ENV_SENTINEL}Path=C:\\Git\\cmd\r\n`;
+		expect(await resolveShellEnvWithSpec({ shellPath: "cmd.exe", args: [], windows: true }, run)).toEqual({ PATH: "C:\\Git\\cmd" });
+		expect(await resolveShellEnvWithSpec({ shellPath: "/bin/sh", args: [] }, run)).toBeNull();
+	});
+	it.skipIf(process.platform !== "win32")("recovers installed Git without inheriting the coding agent's PATH", () => {
+		const probe = windowsPathProbe(process.env);
+		const env = { ...process.env };
+		delete env.Path;
+		env.PATH = `${process.env.SystemRoot}\\System32`;
+		const output = execFileSync(probe.shellPath, probe.args, { env, encoding: "utf8", windowsHide: true, timeout: 10_000 });
+		const resolved = parseEnvBlock(output).PATH;
+		expect(resolved).not.toContain("codex-runtimes");
+		const version = execFileSync("git.exe", ["--version"], { env: { ...env, PATH: resolved }, encoding: "utf8", windowsHide: true });
+		expect(version).toMatch(/^git version /);
 	});
 });
