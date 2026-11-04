@@ -30,9 +30,20 @@ public static class UltimateTestOwner {
 }
 '@
 [UltimateTestOwner]::SetCurrentUser()
-$env:TEMP = Join-Path $env:USERPROFILE 'AppData\Local\Temp\ultimate-validation'
+$testRoot = Join-Path $env:USERPROFILE 'AppData\Local\Temp\ultimate-validation'
+$env:TEMP = Join-Path $testRoot ([guid]::NewGuid().ToString())
 $env:TMP = $env:TEMP
 New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
+# Permission assertions need a private parent, independent of inherited local tooling groups.
+$testUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$testAcl = New-Object System.Security.AccessControl.DirectorySecurity
+$testAcl.SetOwner($testUser)
+$testAcl.SetAccessRuleProtection($true, $false)
+foreach ($sid in @($testUser, [System.Security.Principal.SecurityIdentifier]::new('S-1-5-18'), [System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
+    $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+    $testAcl.AddAccessRule($rule)
+}
+Set-Acl -LiteralPath $env:TEMP -AclObject $testAcl
 $fixture = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid().ToString()))
 try {
     $expectedOwner = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value

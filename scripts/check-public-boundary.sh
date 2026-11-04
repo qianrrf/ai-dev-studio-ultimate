@@ -15,7 +15,8 @@ fail() {
 
 # 1. go.work may only use directories that exist in this checkout.
 if [[ -f go.work ]]; then
-	while read -r dir; do
+	while IFS= read -r dir; do
+		dir=${dir%$'\r'}
 		[[ -d "$dir" ]] || fail "go.work uses $dir, which is not in this repository"
 	done < <(go work edit -json | python3 -c 'import json,sys; [print(u["DiskPath"]) for u in json.load(sys.stdin).get("Use") or []]')
 fi
