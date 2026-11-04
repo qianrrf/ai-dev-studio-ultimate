@@ -14,42 +14,95 @@ concurrency:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: Install test shells
+      - name: Install Linux test shells
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
-      - name: Build, vet and test with race detection
+      - name: Enable Windows symbolic links and long paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Force | Out-Null
+          New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Name AllowDevelopmentWithoutDevLicense -Value 1 -PropertyType DWord -Force | Out-Null
+          git config --global core.longpaths true
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        if: runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc
+          path-type: inherit
+      - name: Select Windows race compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $raceCompiler = Join-Path $env:MSYS2_ROOT 'ucrt64/bin/gcc.exe'
+          "CC=$raceCompiler" >> $env:GITHUB_ENV
+          'CGO_ENABLED=1' >> $env:GITHUB_ENV
+          (Split-Path $raceCompiler) >> $env:GITHUB_PATH
+          & $raceCompiler --version
+      - name: Build
+        working-directory: backend
+        run: go build ./...
+      - name: Vet
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: go vet ./...
+      - name: Complete backend suite with race detection
+        if: ${{ !cancelled() }}
         working-directory: backend
         env:
           skip_global_compinit: "1"
-        run: |
-          go build ./...
-          go vet ./...
-          go test -race -count=1 -timeout=45m ./...
+        run: go test -race -count=1 -timeout=50m ./...
       - name: Check generated API
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: |
           go generate ./internal/httpd/apispec/...
           git diff --exit-code -- internal/httpd/apispec/openapi.yaml
-      - name: Lint
+      - name: Check generated SQL
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: |
+          go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
+          git diff --exit-code -- internal/storage/sqlite/gen
+      - name: Complete static analysis
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run --path-mode=abs
   frontend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Enable Windows symbolic links
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Force | Out-Null
+          New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -Name AllowDevelopmentWithoutDevLicense -Value 1 -PropertyType DWord -Force | Out-Null
       - run: npm ci
       - run: npm ci
         working-directory: frontend
@@ -57,37 +110,38 @@ jobs:
         working-directory: packages/product-ui
       - run: npm ci
         working-directory: packages/cloud-client
-      - name: Types, complete frontend suite and API types
+      - name: Typecheck
+        run: npm run frontend:typecheck
+      - name: Complete frontend suite
+        if: ${{ !cancelled() }}
         env:
           TZ: UTC
+        run: npm --prefix frontend test -- --reporter=default --reporter=json --outputFile=frontend-results.json
+      - name: Check API types
+        if: ${{ !cancelled() }}
         run: |
-          npm run frontend:typecheck
-          npm --prefix frontend test
           npm run api:ts
           git diff --exit-code -- frontend/src/api/schema.ts
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: frontend-results-${{ runner.os }}
+          path: frontend/frontend-results.json
   windows-installer:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - id: product
-        shell: pwsh
-        run: |
-          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
-          "ready=$($version -eq '0.1.0-alpha.1')" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-go@v5
-        if: steps.product.outputs.ready == 'True'
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - uses: actions/setup-node@v4
-        if: steps.product.outputs.ready == 'True'
         with:
-          node-version: 24
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Build unsigned Windows installer
-        if: steps.product.outputs.ready == 'True'
         working-directory: frontend
         env:
           CGO_ENABLED: "0"
@@ -100,7 +154,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem out/make -Recurse -Filter *.exe | Get-FileHash -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
-        if: steps.product.outputs.ready == 'True'
         with:
           name: ai-dev-studio-ultimate-windows-x64
           path: frontend/out/make/**/*.exe
