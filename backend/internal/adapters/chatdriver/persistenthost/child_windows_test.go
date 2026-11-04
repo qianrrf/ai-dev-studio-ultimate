@@ -31,7 +31,7 @@ func TestReadDescriptorRetriesSharingViolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, err := windows.UTF16PtrFromString(path)
+	name, err := windows.UTF16PtrFromString(extendedLengthPath(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestReadDescriptorRetriesSharingViolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.ReadFile(path); !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+	if _, err := readDescriptorOnce(dataDir, d.SessionID); !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
 		_ = windows.CloseHandle(handle)
 		t.Fatalf("locked descriptor read error = %v, want sharing violation", err)
 	}

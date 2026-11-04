@@ -30,8 +30,10 @@ public static class UltimateTestOwner {
 }
 '@
 [UltimateTestOwner]::SetCurrentUser()
-$testRoot = Join-Path $env:USERPROFILE 'AppData\Local\Temp\ultimate-validation'
-$env:TEMP = Join-Path $testRoot ([guid]::NewGuid().ToString())
+# Keep ordinary Git fixtures below MAX_PATH; the dedicated long-path test adds
+# its own long segments independently. Preserve the private-parent ACL below.
+$testRoot = Join-Path $env:USERPROFILE '.aidsu-test'
+$env:TEMP = Join-Path $testRoot ([guid]::NewGuid().ToString('N').Substring(0, 12))
 $env:TMP = $env:TEMP
 New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
 # Permission assertions need a private parent, independent of inherited local tooling groups.

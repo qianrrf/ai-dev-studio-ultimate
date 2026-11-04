@@ -1033,6 +1033,9 @@ func TestManager_Add_DisplayNameValidationAndTruncation(t *testing.T) {
 	if out, err := exec.Command("git", "init", "-b", "main", longPath).CombinedOutput(); err != nil {
 		t.Fatalf("git unavailable: %v (%s)", err, out)
 	}
+	if out, err := exec.Command("git", "-C", longPath, "config", "core.longpaths", "true").CombinedOutput(); err != nil {
+		t.Fatalf("git long-path config: %v (%s)", err, out)
+	}
 	if out, err := exec.Command("git", "-C", longPath, "config", "user.email", "test@example.com").CombinedOutput(); err != nil {
 		t.Fatalf("git config: %v (%s)", err, out)
 	}
