@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/kimiacp"
 	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
@@ -1558,7 +1560,7 @@ func TestInterfaceHandoffRefreshesNativeHistoryUntilItReachesTheCheckpoint(t *te
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("checkpoint-refresh-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1593,7 +1595,7 @@ func TestInterfaceHandoffStopsPollingWhenProviderRejectsHistoryLoad(t *testing.T
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("load-rejected-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1625,7 +1627,7 @@ func TestInterfaceHandoffBoundsStalledHistoryLoadAttempt(t *testing.T) {
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("load-stalled-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1672,7 +1674,7 @@ func TestInterfaceHandoffImportsInterruptedUserOnlyNativeHistory(t *testing.T) {
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("interrupted-history-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1727,7 +1729,7 @@ func TestInterfaceHandoffImportsOutcomeUnknownNativeHistoryAsRecovered(t *testin
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("recovered-history-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1759,7 +1761,7 @@ func TestInterfaceHandoffRejectsAProviderWithoutNativeHistoryReplay(t *testing.T
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("no-history-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 
 	_, err := svc.Start(context.Background(), chatsvc.StartConfig{
@@ -1784,7 +1786,7 @@ func TestOrdinaryResumeAllowsACPContextWithoutHistoryReplay(t *testing.T) {
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("context-only-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 
 	if _, err := svc.Start(context.Background(), chatsvc.StartConfig{
@@ -1811,7 +1813,7 @@ func TestInterfaceHandoffReportsUnsettledHistoryWhenContextEndsBeforeRefresh(t *
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("unsettled-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	_, err := svc.Start(ctx, chatsvc.StartConfig{
 		SessionID: testSession, ProjectID: testProject, Harness: domain.HarnessCodex,
@@ -1849,7 +1851,7 @@ func TestInterfaceHandoffRejectsUnsettledImmutableHistoryWithoutRereading(t *tes
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("immutable-unsettled-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	_, err := svc.Start(ctx, chatsvc.StartConfig{
 		SessionID: testSession, ProjectID: testProject, Harness: domain.HarnessCodex,
@@ -1895,7 +1897,7 @@ func TestInterfaceHandoffRejectsSettledReplayBeforeLatestSessionCheckpoint(t *te
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("checkpoint-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -1948,7 +1950,7 @@ func TestInterfaceHandoffCheckpointHistoryPolicy(t *testing.T) {
 				Store: st, Sessions: st,
 				Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 				Log:     slog.New(slog.DiscardHandler),
-				NewID:   func() string { return fmt.Sprintf("checkpoint-history-%d", time.Now().UnixNano()) },
+				NewID:   uuid.NewString,
 			})
 			t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 			ctrl, err := svc.Start(context.Background(), chatsvc.StartConfig{
@@ -2042,7 +2044,7 @@ func TestInterfaceHandoffTrustedCheckpointMayPrecedeLaterCompletedTurn(t *testin
 				Store: st, Sessions: st,
 				Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 				Log:     slog.New(slog.DiscardHandler),
-				NewID:   func() string { return fmt.Sprintf("earlier-checkpoint-%d", time.Now().UnixNano()) },
+				NewID:   uuid.NewString,
 			})
 			t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2140,7 +2142,7 @@ func TestInterfaceHandoffPanePromptWithMissedHookCannotAcceptHistoryBeforeObserv
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("missed-prompt-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2176,7 +2178,7 @@ func TestInterfaceHandoffImmutableBoundaryFailsBeforeReadingProviderHistory(t *t
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("immutable-boundary-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2227,7 +2229,7 @@ func TestInterfaceHandoffAssistantOnlyCheckpointFailsClosedOnRepeatedText(t *tes
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("assistant-checkpoint-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2274,7 +2276,7 @@ func TestInterfaceHandoffTrustedCheckpointMustMatchOneCompletedTurn(t *testing.T
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("single-turn-checkpoint-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2358,7 +2360,7 @@ func TestInterfaceHandoffAOHighWaterFallbackMustStayInItsTurn(t *testing.T) {
 		}),
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("high-water-turn-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2439,7 +2441,7 @@ func TestInterfaceHandoffAOHighWaterAcceptsMappedReassignedTurn(t *testing.T) {
 		}),
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("high-water-reassigned-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2482,7 +2484,7 @@ func TestInterfaceHandoffProviderHistoryCannotWaiveTrustedCheckpointNativeIdenti
 				Store: st, Sessions: st,
 				Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 				Log:     slog.New(slog.DiscardHandler),
-				NewID:   func() string { return fmt.Sprintf("native-identity-%d", time.Now().UnixNano()) },
+				NewID:   uuid.NewString,
 			})
 			t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2589,7 +2591,7 @@ func TestInterfaceHandoffRoundTripRetiresTrustedTerminalCheckpointAfterChatTurn(
 		Store: st, Sessions: st,
 		Drivers: fakeRegistry{driver: fakeDriver{conv: provider}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("round-trip-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2863,7 +2865,7 @@ func TestInterfaceHandoffDoesNotAnchorReplayBeforeProviderCoordinationBoundary(t
 		}),
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("provider-boundary-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 
@@ -2896,7 +2898,7 @@ func TestSlowNativeHistoryDoesNotBlockOtherControllerLookups(t *testing.T) {
 		}),
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("lock-id-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	workspace := t.TempDir()
 	startDone := make(chan error, 1)
@@ -6459,7 +6461,7 @@ func testStartSettlesWorkLeftByAKilledController(t *testing.T, queuedOnly bool) 
 		Sessions: h.st,
 		Drivers:  fakeRegistry{driver: fakeDriver{conv: newFakeConversation()}},
 		Log:      slog.New(slog.DiscardHandler),
-		NewID:    func() string { return "next-" + fmt.Sprint(time.Now().UnixNano()) },
+		NewID:    uuid.NewString,
 		Now:      h.now,
 	})
 	t.Cleanup(func() { _ = next.Stop(context.Background(), testSession) })

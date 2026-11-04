@@ -1,6 +1,16 @@
 # GitHub's elevated Windows runner otherwise makes Administrators the default
 # owner of every fixture, unlike the ordinary desktop user being tested.
 $ErrorActionPreference = 'Stop'
+# The upstream fixtures execute Git's POSIX utilities even from PowerShell.
+$gitExecPath = & git --exec-path
+if ($LASTEXITCODE -ne 0) { throw 'Git is required for the Windows test environment' }
+$gitRoot = Split-Path (Split-Path (Split-Path $gitExecPath.Trim()))
+$gitShellBin = Join-Path $gitRoot 'usr/bin'
+if (-not (Test-Path -LiteralPath (Join-Path $gitShellBin 'sh.exe')) -or
+    -not (Test-Path -LiteralPath (Join-Path $gitShellBin 'bash.exe'))) {
+    throw 'Git for Windows POSIX test utilities were not found'
+}
+$env:PATH = $gitShellBin + ';' + $env:PATH
 Add-Type @'
 using System;
 using System.ComponentModel;

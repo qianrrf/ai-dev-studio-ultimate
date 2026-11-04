@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
@@ -948,7 +950,7 @@ func TestControllerPublishedWhileProvisioningCannotOvertakeQueuedPrompt(t *testi
 		Store: st, Sessions: st, Reader: fullSnapshotReader(st),
 		Drivers: fakeRegistry{driver: fakeDriver{conv: conv}},
 		Log:     slog.New(slog.DiscardHandler),
-		NewID:   func() string { return fmt.Sprintf("queued-%d", time.Now().UnixNano()) },
+		NewID:   uuid.NewString,
 	})
 	ctx := context.Background()
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), provisioningSession) })

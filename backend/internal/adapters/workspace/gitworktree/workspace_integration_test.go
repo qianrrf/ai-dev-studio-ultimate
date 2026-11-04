@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
@@ -65,6 +66,15 @@ func TestWorkspaceIntegrationCreateRestoreDestroy(t *testing.T) {
 }
 
 func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
+	testWorkspaceIntegrationChinesePaths(t, true)
+}
+
+func TestWorkspaceIntegrationChineseLongFilePaths(t *testing.T) {
+	testWorkspaceIntegrationChinesePaths(t, false)
+}
+
+func testWorkspaceIntegrationChinesePaths(t *testing.T, longRoot bool) {
+	t.Helper()
 	git := requireGit(t)
 	tmp := t.TempDir()
 	repo := setupOriginClone(t, git, filepath.Join(tmp, "source"))
@@ -74,7 +84,10 @@ func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
 	if err := os.WriteFile(hook, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > hook-args.txt\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	root := filepath.Join(tmp, "中文 spaced workspace", strings.Repeat("segment-", 12), strings.Repeat("nested-", 12))
+	root := filepath.Join(tmp, "中文 spaced workspace")
+	if longRoot {
+		root = filepath.Join(root, strings.Repeat("segment-", 12), strings.Repeat("nested-", 12))
+	}
 	ws, err := New(Options{Binary: git, ManagedRoot: root, RepoResolver: StaticRepoResolver{"proj": repo}})
 	if err != nil {
 		t.Fatal(err)
@@ -100,9 +113,10 @@ func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
 	if err := os.Remove(filepath.Join(info.Path, "hook-args.txt")); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(info.Path, "中文 source", strings.Repeat("deep-", 12), "result.txt")
-	if len(file) <= 260 {
-		t.Fatalf("fixture must exceed MAX_PATH: %d", len(file))
+	file := filepath.Join(info.Path, "中文 source", strings.Repeat("deep-", 25), "result.txt")
+	pathUnits := len(utf16.Encode([]rune(file)))
+	if pathUnits <= 260 {
+		t.Fatalf("fixture must exceed MAX_PATH: %d UTF-16 units", pathUnits)
 	}
 	if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
 		t.Fatal(err)
@@ -121,7 +135,7 @@ func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
 	if _, err := os.Stat(info.Path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("worktree remained after cleanup: %v", err)
 	}
-	t.Logf("Created, committed, read and removed a worktree with a %d-character file path", len(file))
+	t.Logf("Created, committed, read and removed a worktree with a file path of %d UTF-16 units", pathUnits)
 }
 
 func TestWorkspaceIntegrationExplicitNewBranchRejectsExistingName(t *testing.T) {

@@ -65,7 +65,7 @@ jobs:
       - name: Verify native Windows long workspace operations
         if: ${{ runner.os == 'Windows' && !cancelled() }}
         working-directory: backend
-        run: go test -count=1 -run '^TestWorkspaceIntegrationChineseLongPaths$' ./internal/adapters/workspace/gitworktree
+        run: go test -count=1 -run '^TestWorkspaceIntegrationChineseLong(File)?Paths$' ./internal/adapters/workspace/gitworktree
       - name: Complete backend suite with race detection
         if: ${{ !cancelled() }}
         working-directory: backend

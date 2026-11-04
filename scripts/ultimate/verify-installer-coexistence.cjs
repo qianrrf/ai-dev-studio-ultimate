@@ -30,6 +30,12 @@ function run(exe, args) {
 function protocol(app) {
   return run('reg.exe', ['query', `HKCU\\Software\\Classes\\${app.protocol}\\shell\\open\\command`, '/ve']);
 }
+function protocolAbsent(app) {
+  const result = spawnSync('reg.exe', ['query', `HKCU\\Software\\Classes\\${app.protocol}`], { windowsHide: true, timeout: 10000 });
+  assert.ok(!result.error, result.error?.message);
+  assert.ok(result.status === 0 || result.status === 1, 'Registry query did not complete');
+  return result.status === 1;
+}
 function shortcut(app) {
   return path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', app.name + '.lnk');
 }
@@ -75,7 +81,9 @@ async function uninstall(app) {
   const uninstaller = fs.readdirSync(app.install).find(name => /^Uninstall .*\.exe$/i.test(name));
   assert.ok(uninstaller);
   run(path.join(app.install, uninstaller), ['/S']);
-  await until(() => !fs.existsSync(path.join(app.install, app.exe)), app.id + ' uninstall');
+  // NSIS relaunches the uninstaller; its launcher exit does not finish cleanup.
+  await until(() => !fs.existsSync(path.join(app.install, app.exe)) &&
+    !fs.existsSync(shortcut(app)) && (app.id !== 'product' || protocolAbsent(app)), app.id + ' uninstall files, shortcut and protocol');
   assert.ok(!fs.existsSync(shortcut(app)));
   assert.ok(fs.existsSync(path.join(app.data, 'ao.db')));
   assert.equal(fs.readFileSync(path.join(app.data, 'preserve.txt'), 'utf8'), app.id + '-uninstall-preservation');
@@ -94,7 +102,7 @@ async function uninstall(app) {
   const upstreamProtocol = protocol(apps[1]);
   await stop(apps[0]);
   await uninstall(apps[0]);
-  assert.notEqual(spawnSync('reg.exe', ['query', `HKCU\\Software\\Classes\\${apps[0].protocol}`], { windowsHide: true }).status, 0);
+  assert.ok(protocolAbsent(apps[0]));
   assert.ok(fs.existsSync(path.join(apps[1].install, apps[1].exe)));
   assert.equal(protocol(apps[1]), upstreamProtocol);
   assert.ok(fs.existsSync(shortcut(apps[1])));
@@ -105,7 +113,7 @@ async function uninstall(app) {
   const productProtocol = protocol(apps[0]);
   await stop(apps[1]);
   await uninstall(apps[1]);
-  report.upstreamProtocolRemoved = spawnSync('reg.exe', ['query', `HKCU\\Software\\Classes\\${apps[1].protocol}`], { windowsHide: true }).status !== 0;
+  report.upstreamProtocolRemoved = protocolAbsent(apps[1]);
   assert.equal(protocol(apps[0]), productProtocol);
   assert.ok(fs.existsSync(shortcut(apps[0])));
   assert.equal((await fetch(`http://127.0.0.1:${apps[0].port}/healthz`)).status, 200);

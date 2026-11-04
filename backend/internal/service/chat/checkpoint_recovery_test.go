@@ -3,11 +3,12 @@ package chat_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
@@ -48,7 +49,7 @@ func TestInterfaceHandoffRecoversLegacyCheckpointFromUnsettledChatTurn(t *testin
 			svc := chatsvc.New(chatsvc.Options{
 				Store: st, Sessions: st, Reader: fullSnapshotReader(st),
 				Drivers: fakeRegistry{driver: driver}, Log: slog.New(slog.DiscardHandler),
-				NewID: func() string { return fmt.Sprintf("checkpoint-recovery-%d", time.Now().UnixNano()) },
+				NewID: uuid.NewString,
 			})
 			t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 			cfg := chatsvc.StartConfig{
@@ -167,7 +168,7 @@ func TestInterfaceHandoffNewTrustedTUIPromptCannotBorrowOldFailedChatOutcome(t *
 	svc := chatsvc.New(chatsvc.Options{
 		Store: st, Sessions: st, Reader: fullSnapshotReader(st),
 		Drivers: fakeRegistry{driver: driver}, Log: slog.New(slog.DiscardHandler),
-		NewID: func() string { return fmt.Sprintf("new-trusted-checkpoint-%d", time.Now().UnixNano()) },
+		NewID: uuid.NewString,
 	})
 	t.Cleanup(func() { _ = svc.Stop(context.Background(), testSession) })
 	for _, policy := range []domain.SessionInterfaceTransitionHistoryPolicy{
