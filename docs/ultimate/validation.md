@@ -33,7 +33,7 @@ was accepted (5,680 files); Git history is not shallow.
 | Go baseline tests | 156 packages passed, 56 failed; 288 failing test names recorded |
 | Native Go DSH ACP model-catalog live test | Passed with installed `.cmd` |
 | Original Electron desktop package | Blocked rebuilding native `better-sqlite3`: Visual Studio C++ installation unavailable |
-| Hosted GitHub fork | Blocked: no authenticated GitHub client |
+| Hosted GitHub fork | Initially blocked; authenticated fork creation and development-branch push subsequently completed (see follow-up below) |
 
 ## Native DSH protocol probe (no model prompts)
 
@@ -244,17 +244,99 @@ both reports have `ok=false` and zero model prompts. An invalid executable also
 fails cleanly. Evidence: `native-sandbox-no-model.log`,
 `native-sandbox-unelevated-no-model.log`, `native-sandbox-invalid-binary.log`.
 
+## Windows environment follow-up
+
+### GitHub fork
+
+GitHub CLI 2.103.3 was downloaded from the official release and checked against
+SHA-256 `98d0cfa794721665d7973dd728c78aff7bd836d58f10f6d7a03568eccb0a22e0`.
+The user completed login. The fork is
+<https://github.com/qianrrf/ai-dev-studio-ultimate>; `origin` points there and
+`upstream` retains the original repository. The development branch was pushed
+and its remote SHA matched `b58af0dceb4164fa17853d476e7dc7772455b9a9`.
+No PR, review comment, release or package was published. No remote CI run is
+claimed. `enter-dev.ps1 -GitHubBin` optionally adds the verified CLI directory
+to the current process PATH only, and rejects a directory without `gh.exe`.
+
+### Native Windows sandbox after reboot
+
+The host rebooted at 2026-11-04 14:02 local time. Codex 0.162.1 still failed
+elevated setup while changing ACLs on a loaded desktop `node_repl.exe`.
+Removing inherited `CODEX_MCP_NODE_PATH` from the probe child did not fix it.
+Neither result proves that read-only execution succeeded.
+
+The desktop's separate Codex `0.166.0-alpha.5.1` was tested without replacing
+the product default. Both its configured mode and explicit elevated mode read
+the seed, returned errors for the write probe without creating its file, and
+allowed the loopback HTTP probe (one server request). Both reports have
+`ok=false`; an RPC error alone does not qualify write isolation.
+
+Current [official Windows guidance](https://developers.openai.com/codex/windows/)
+requires Windows 11 24H2 build 26100.9278 or 25H2 build 26200.9278 for MXC.
+This host reports 23H2 build 22631. The same guidance explicitly permits host
+loopback with MXC; an OS upgrade cannot be assumed to resolve this boundary.
+No OS upgrade, global Codex configuration change, credential refresh or model
+prompt was performed for these follow-up probes.
+
+Evidence: `native-sandbox-followup.log`, `native-sandbox-no-desktop-node.log`,
+`native-sandbox-desktop-runtime.log`, `native-sandbox-desktop-elevated.log`,
+and `codex-windows-followup.html` in the external validation directory.
+
+### C++ build tools installation in progress
+
+Microsoft Build Tools 17.14.44 was launched for
+`C:\BuildTools\AI-Dev-Studio`, with the VCTools workload, recommended components
+and `--norestart`. Bootstrapper SHA-256
+`5dc747350fb0589f908915c7b5fa52ec22d22b37ae2e5f4964d83519667498b2`
+and Microsoft Authenticode were verified. The first attempt stalled downloading
+the catalog before a product instance existed; only that attempt's identified
+setup process was stopped. A second attempt reached component installation and
+remains active. It has not yet qualified the toolchain or a desktop build.
+
+The official channel listed a catalog SHA-256 of
+`4cc372d79f02e331c999a926b833a49eb74b30357d30f41ba9cffa1dc0369379`,
+but its official URL returned different JSON bytes, SHA-256
+`963760b01f621ed4fa40d1cf97aeb042f7bc6e04e3176c13c38abb19d265f789`.
+The external hash check failed and was not relabeled as passed. Instead the
+original downloaded catalog was supplied using Microsoft's documented
+`--installCatalogUri`. Microsoft's installer recorded `ManifestVerifier Result:
+Success` and loaded `VisualStudio/17.14.44+37827.9`; downloaded components then
+passed its individual SHA checks. Signature validation was not disabled.
+
+As of 16:17 local time, `vswhere -all -products *` still returned no installed
+instance. The latest component log was 15:37; two pending payload files were
+still empty. Subsequent direct TLS requests to Microsoft and GitHub also failed
+intermittently. One range request through an existing Microsoft CDN address
+succeeded with normal certificate verification; another address failed its
+certificate check and was rejected. No DNS, hosts file, TLS validation or
+installer-owned payload was modified to bypass those failures. The captured
+process tree, log timestamp and instance query are recorded in
+`buildtools-followup-status.json`.
+
+The baseline lock resolves Electron 44.7.0 / ABI 149 and `better-sqlite3` 12.11.1.
+A successful GitHub API read of the latter's official release found 138 assets
+and no `better-sqlite3-v12.11.1-electron-v149-win32-x64.tar.gz`
+(`sqlite-electron-prebuilt-check.json`). Native compilation is therefore needed
+for this pinned combination; using a binary for another ABI is not a valid fix.
+
+Evidence: `buildtools-local-catalog-launch.json`, the corresponding result JSON
+when the process exits, and installer logs `dd_installer_20261104150912.log`,
+`dd_installer_elevated_20261104150923.log` under the Windows temp directory.
+MSVC installation alone also does not establish Go race-test support; that
+requires a separately verified compatible C compiler. Neither race tests nor
+desktop packaging are marked passed.
+
 ## Stage status and retained state
 
 | Stage | Current state |
 |---|---|
-| A | Full local history, fixed branch, isolated build/test environment and evidence committed; hosted fork and desktop package blocked |
+| A | Full history, hosted fork and development branch push completed; isolated build/test evidence committed; original desktop package still blocked while C++ installation is incomplete |
 | B | Real Codex relay turn, two parallel DSH ACP workers, approval rejection, interruption, deliberate controller exit/resume and daemon restart evidence obtained; PR reviewer and strict Windows local review not qualified |
 | C | Durable public read-only foundation implemented and tested; unified intake, control ownership/revision fencing, local base/head review binding, acceptance evidence and two-round rework policy remain unimplemented |
 | D | Branding, installer identity, product data root, update/telemetry replacement and coexistence not implemented; held behind critical validation gates |
 
-No GitHub PR/comment was published. No hosted `origin` was invented without
-authentication. The user relay provider remains in place. Scratch controller
+No GitHub PR/comment was published. The hosted `origin` was configured after
+authentication and fork creation. The user relay provider remains in place. Scratch controller
 processes were stopped with their own exit-agent APIs; the isolated daemon was
 shut down with its own endpoint. Scratch sessions, logs and Git worktrees remain,
 including Worker 1's uncommitted calculator fix. No user Codex desktop process

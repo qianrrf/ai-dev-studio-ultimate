@@ -9,7 +9,8 @@ gates. A documented capability is not a passing live test.
 - Fixed baseline: `b325d24b741297bf89296e76501d7e09018c4a04`
 - Baseline tree: `9fdd0fe2fd1b260d49941fb6ce64720a0699e5c0`
 - Local branch: `aidsu/windows-mvp`; complete baseline ancestry retained.
-- Hosted fork: pending GitHub authentication; no `origin` has been fabricated.
+- Hosted fork: https://github.com/qianrrf/ai-dev-studio-ultimate
+- `origin` tracks that fork; `aidsu/windows-mvp` has been pushed and verified.
 - Target: native Windows, one trusted local Git repository per project, one
   effective Codex controller, two DSH Chat workers, separate Codex review.
 - Preserve Apache-2.0 and the original component/third-party notices.

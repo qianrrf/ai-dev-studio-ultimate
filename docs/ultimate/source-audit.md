@@ -179,8 +179,10 @@ the pinned Electron version. A daemon build is not a desktop package test.
 `frontend.yml` handles renderer/type checks and selected native checks;
 `build-artifacts.yml` includes Windows packaging. This does not qualify all
 Windows filesystem, permissions, process and recovery paths. The local baseline
-suite has failures and the desktop build currently lacks the C++ toolchain;
-see the validation ledger rather than assuming CI implies local success.
+suite has failures and C++ toolchain installation is incomplete. The pinned
+Electron 44.7.0 uses ABI 149, for which the `better-sqlite3` 12.11.1 release
+does not currently provide a Windows x64 prebuild; native compilation is needed.
+See the validation ledger rather than assuming CI implies local success.
 
 ## Official documentation checked
 

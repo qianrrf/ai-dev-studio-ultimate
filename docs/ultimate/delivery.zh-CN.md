@@ -4,7 +4,7 @@
 
 ## 已完成的工作
 
-1. 保留上游完整 Git 历史，以固定提交 `b325d24b741297bf89296e76501d7e09018c4a04` 为基线，建立 `aidsu/windows-mvp` 分支和 `upstream`。
+1. 保留上游完整 Git 历史，以固定提交 `b325d24b741297bf89296e76501d7e09018c4a04` 为基线，建立 `aidsu/windows-mvp` 分支和 `upstream`。已建立独立线上 [Fork](https://github.com/qianrrf/ai-dev-studio-ultimate)，配置 `origin`，并推送开发分支。
 2. 核查实际源码、数据库迁移、原生 Agent 驱动、Windows 运行与构建流程，以及当前官方文档。架构图、模块归属、复用项、必需扩展点与风险见 [源码审计](source-audit.md)。
 3. 建立隔离的开发数据、运行发现文件、工具缓存和一次性测试仓库；没有连接原版应用数据。
 4. 完成后端构建、vet、前端类型检查与原版全量测试执行，记录实际失败；没有把存在失败的测试集标成通过。
@@ -24,7 +24,7 @@
 | 未知工具审批与拒绝 | 已真实验证，未静默批准 |
 | 取消与受控恢复 | 已验证部分场景；未覆盖全部强杀/后代进程场景 |
 | Codex 无 PR 严格只读审查 | 基础约束已实现，Windows 环境验证未通过 |
-| GitHub 原生 PR Reviewer | 未验证，缺少 GitHub 登录 |
+| GitHub 原生 PR Reviewer | 未验证；GitHub 登录及 Fork 已完成，尚未发布测试 PR 或评论 |
 | 内外主控切换、旧主控派单拦截 | 尚未实现 |
 | 完整派工—审查—返工—验收闭环 | 尚未完成 |
 | Windows 安装包、品牌与共存 | 尚未完成 |
@@ -33,11 +33,15 @@
 
 ### 1. Windows 原生只读审查环境
 
-本机 Codex 0.162.1 的 `elevated` 沙箱初始化失败，日志指向正在占用的 Codex 运行时文件及权限设置；`mxc` 执行器不可用。
+本机 Codex 0.162.1 的 `elevated` 沙箱初始化失败，日志指向正在占用的 Codex 运行时文件及权限设置。2026-11-04 14:02 重启后复测，问题仍然存在；移除测试子进程继承的 `CODEX_MCP_NODE_PATH` 也没有解决，不能继续把重启当作已证实的修复方法。
 
 诊断用 `unelevated` 可以读取、阻止直接写文件，但仍能访问本机 HTTP 服务，无法满足严格只读审查边界。产品会拒绝这种配置，不能把诊断结果算成通过。
 
-本轮没有结束你正在使用的 Codex 桌面进程，也没有修改全局 Codex 配置。之后可在关闭占用运行时的应用后，按 Codex 官方 Windows 指引修复/验证沙箱，再运行：
+另外诊断了桌面附带的 Codex `0.166.0-alpha.5.1`，没有替换产品默认版本。它能读取文件，写入探针返回错误且没有生成文件，但本机 HTTP 探针仍收到请求，因此整体结果仍为失败。RPC 错误本身不作为成功拒写的证据。
+
+本机 Windows 11 23H2 build 22631 不满足当前官方文档列出的 MXC 主机版本要求；官方还说明 MXC 允许主机 loopback，不能假设升级 Windows 就能满足本项目的网络边界。
+
+本轮没有结束你正在使用的 Codex 桌面进程，也没有修改全局 Codex 配置。之后按 Codex 官方 Windows 指引修复/验证沙箱，再运行：
 
 ```powershell
 node scripts/ultimate/probe-codex-sandbox.mjs
@@ -47,13 +51,17 @@ node scripts/ultimate/probe-codex-sandbox.mjs
 
 ### 2. Windows 原版桌面构建工具
 
-原版桌面构建已走到 Electron Forge 的 `better-sqlite3` 原生模块编译。使用本机附带 Python 后，确认缺少 Visual Studio C++ 构建工具。需要 Windows C++ 桌面开发工具链及对应 SDK，随后在原版复现 Worktree 重跑正常构建。未通过此步骤前，没有可交付的 Windows 安装包。
+原版桌面构建已走到 Electron Forge 的 `better-sqlite3` 原生模块编译。使用本机附带 Python 后，确认缺少 Visual Studio C++ 构建工具。微软官方 Build Tools 17.14.44 已启动安装，目标目录为 `C:\BuildTools\AI-Dev-Studio`，没有自动重启。当前仍在下载组件，尚未获得完整工具链安装成功的证据；不能将启动安装当作构建缺口已解决。
+
+安装完成后，在原版复现 Worktree 重跑正常构建。已核对 `better-sqlite3` 官方发布资产，没有当前 Electron ABI 149 的 Windows x64 预编译包，不能用其他 ABI 的二进制替代编译。未通过此步骤前，没有可交付的 Windows 安装包。安装器与组件校验细节见 [验证记录](validation.md#windows-environment-follow-up)。
 
 同时保留上游依赖安装的审计告警和原版 Windows 测试失败记录，后续逐项归因，不使用自动升级掩盖风险。
 
 ### 3. GitHub Fork 与 PR 验证
 
-本机没有可用的 GitHub 认证，尚未创建线上 Fork，也没有伪造 `origin`。本地完整历史与提交都已保留。登录后才能建立独立 Fork、配置 `origin`，再在一次性测试仓库验证会发布内容的原生 PR Reviewer。
+GitHub 登录已完成，独立 Fork 为 <https://github.com/qianrrf/ai-dev-studio-ultimate>，`origin` 指向该 Fork，`upstream` 保持原项目。开发分支的前四个开发提交已经推送并核对远端 SHA。
+
+线上 Fork 不等于原生 PR Reviewer 验收通过；尚未发布测试 PR、评论或 Release，也没有远端 CI 通过的证据。真实 PR 审查应在一次性测试仓库中执行，并单独记录其发布行为与审查结果。
 
 ## 后续开发顺序
 

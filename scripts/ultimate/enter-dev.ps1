@@ -1,5 +1,5 @@
 # Dot-source this file to configure only this PowerShell process.
-param([string]$GoBin, [string]$DshBin, [ValidateSet('mxc', 'elevated', 'unelevated')][string]$CodexWindowsSandbox)
+param([string]$GoBin, [string]$DshBin, [ValidateSet('mxc', 'elevated', 'unelevated')][string]$CodexWindowsSandbox, [string]$GitHubBin)
 $ErrorActionPreference = 'Stop'
 if ($CodexWindowsSandbox) { $env:AO_CODEX_WINDOWS_SANDBOX = $CodexWindowsSandbox }
 if ($GoBin) {
@@ -9,6 +9,10 @@ if ($GoBin) {
 if ($DshBin) {
     if (-not (Test-Path -LiteralPath (Join-Path $DshBin 'dsh.cmd'))) { throw 'DshBin must contain dsh.cmd' }
     $env:PATH = $DshBin + ';' + $env:PATH
+}
+if ($GitHubBin) {
+    if (-not (Test-Path -LiteralPath (Join-Path $GitHubBin 'gh.exe'))) { throw 'GitHubBin must contain gh.exe' }
+    $env:PATH = $GitHubBin + ';' + $env:PATH
 }
 # Never attach development or validation to the installed AO application.
 $labRoot = Join-Path $env:USERPROFILE '.cache\ai-dev-studio-ultimate\lab'
