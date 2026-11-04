@@ -3,7 +3,7 @@ import { ChevronLeft, FolderClosed, MessageSquarePlus, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import aoLogo from "../assets/ao-mascot.png";
+import aoLogo from "../../../assets/ultimate-mark.svg";
 import { useCloseShellTerminal } from "../hooks/useShellTerminals";
 import { useGitHubAuthRequirement, useGitHubAuthTerminal, useStartGitHubAuthTerminal, useSystemRequirementsGate } from "../hooks/useSystemRequirementsGate";
 import type { TerminalSessionState } from "../hooks/useTerminalSession";

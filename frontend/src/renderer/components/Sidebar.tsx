@@ -1009,7 +1009,7 @@ export function Sidebar({
 					<span
 						className="sidebar-expanded-chrome min-w-0 flex-1 truncate text-base font-semibold leading-tight tracking-tight-lg text-foreground group-data-[collapsible=icon]:hidden"
 					>
-						<BuildInfoTooltip>Orchestrator</BuildInfoTooltip>
+						<BuildInfoTooltip>AI Dev Studio Ultimate</BuildInfoTooltip>
 					</span>
 				</button>
 				<Tooltip>
