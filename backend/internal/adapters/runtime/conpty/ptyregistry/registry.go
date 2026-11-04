@@ -8,10 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 )
 
 // Entry is one registered pty-host process.

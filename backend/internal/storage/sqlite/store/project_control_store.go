@@ -43,7 +43,7 @@ func (s *Store) SetProjectControl(ctx context.Context, id domain.ProjectID, kind
 			return err
 		}
 		if domain.ProjectKind(project.Kind).WithDefault() != domain.ProjectKindSingleRepo {
-			return fmt.Errorf("Codex control requires a single-repository project")
+			return fmt.Errorf("project control requires a single-repository project")
 		}
 		config := codexControlledConfig(unmarshalProjectConfig(project.Config))
 		encoded, err := marshalProjectConfig(config)
@@ -159,6 +159,7 @@ func (s *Store) AddProjectRequest(ctx context.Context, in domain.ProjectRequest)
 	return out, err
 }
 
+// ListProjectRequests reads durable requirements and their attachments.
 func (s *Store) ListProjectRequests(ctx context.Context, id domain.ProjectID) ([]domain.ProjectRequest, error) {
 	rows, err := s.qr.ListProjectRequests(ctx, string(id))
 	if err != nil {
@@ -175,6 +176,7 @@ func (s *Store) ListProjectRequests(ctx context.Context, id domain.ProjectID) ([
 	return out, nil
 }
 
+// CompleteAutomationIntake settles an automation after its requirement is retained.
 func (s *Store) CompleteAutomationIntake(ctx context.Context, id domain.AutomationRunID, now time.Time) (bool, error) {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return false, err

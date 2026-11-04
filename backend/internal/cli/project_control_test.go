@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,14 +24,14 @@ func TestProjectControlCLIUsesDaemonAndPreservesConflicts(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		if r.Method == "PUT" {
+		if r.Method == http.MethodPut {
 			var in projectControlRequest
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 				t.Error(err)
 			}
 			requests = append(requests, in)
 			if in.ExpectedRevision == 9 {
-				w.WriteHeader(409)
+				w.WriteHeader(http.StatusConflict)
 				_, _ = io.WriteString(w, `{"error":"conflict","code":"PROJECT_CONTROL_CONFLICT","message":"refresh ownership","requestId":"control-test"}`)
 				return
 			}
@@ -62,7 +63,8 @@ func TestControlledCLIRejectsIncompleteClaimsBeforeHTTP(t *testing.T) {
 		{"project", "request", "demo", "brief"},
 	} {
 		_, _, err := executeCLI(t, Deps{}, args...)
-		if _, ok := err.(usageError); !ok {
+		var usage usageError
+		if !errors.As(err, &usage) {
 			t.Fatalf("%v: want usage error, got %T %v", args, err, err)
 		}
 	}

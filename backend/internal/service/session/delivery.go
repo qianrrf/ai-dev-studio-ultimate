@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -50,6 +51,7 @@ func verifyDeliveryTree(ctx context.Context, path, head string) error {
 	return nil
 }
 
+// DeliveryEvidence reads receipts and derives their validity from current facts.
 func (s *Service) DeliveryEvidence(ctx context.Context, workerID domain.SessionID) ([]domain.DeliveryEvidence, error) {
 	worker, found, err := s.store.GetSession(ctx, workerID)
 	if err != nil {
@@ -306,7 +308,8 @@ func runDeliveryTest(ctx context.Context, path string, command []string) domain.
 		result.ExitCode = &code
 	}
 	if err != nil {
-		if _, exited := err.(*exec.ExitError); !exited || ctx.Err() != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || ctx.Err() != nil {
 			result.Error = err.Error()
 		}
 	}

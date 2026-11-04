@@ -18,18 +18,21 @@ type projectControlService interface {
 	ProjectRequests(context.Context, domain.ProjectID) ([]domain.ProjectRequest, error)
 }
 
+// ProjectControlRequest changes ownership only at the expected revision.
 type ProjectControlRequest struct {
 	OwnerKind        string `json:"ownerKind" enum:"internal,external,unowned"`
 	OwnerID          string `json:"ownerId" maxLength:"128"`
 	ExpectedRevision int64  `json:"expectedRevision" minimum:"0"`
 }
 
+// ProjectIntakeRequest submits a requirement independently of worker dispatch.
 type ProjectIntakeRequest struct {
 	ID          string            `json:"id" maxLength:"128"`
 	Brief       string            `json:"brief" maxLength:"16384"`
 	Attachments []AttachmentInput `json:"attachments,omitempty"`
 }
 
+// ProjectRequestsResponse contains the durable project inbox.
 type ProjectRequestsResponse struct {
 	Requests []domain.ProjectRequest `json:"requests"`
 }

@@ -33,7 +33,7 @@ func TestControlledAutomationDeliversIntakeWithoutStartingAnAgent(t *testing.T) 
 	if err != nil || len(requests) != 1 || requests[0].Brief != definition.Prompt {
 		t.Fatalf("requests=%+v err=%v", requests, err)
 	}
-	runs, err := store.ListAutomationRuns(ctx, domain.AutomationRunFilter{AutomationID: definition.ID, Limit:10})
+	runs, err := store.ListAutomationRuns(ctx, domain.AutomationRunFilter{AutomationID: definition.ID, Limit: 10})
 	if err != nil || len(runs.Items) != 1 || runs.Items[0].Status != domain.AutomationRunCompleted || runs.Items[0].SessionID != nil {
 		t.Fatalf("runs=%+v err=%v", runs, err)
 	}

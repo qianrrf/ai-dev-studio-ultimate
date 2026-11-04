@@ -583,7 +583,10 @@ func (c *conversation) openConfig(ctx context.Context, effort string, servers []
 	mcp := disabled(resp.Config.MCPServers)
 	if supplied, ok := config["mcp_servers"].(map[string]any); ok {
 		for name, value := range supplied {
-			entry := value.(map[string]any)
+			entry, ok := value.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid read-only MCP configuration for %q", name)
+			}
 			entry["enabled"] = false
 			delete(entry, "default_tools_approval_mode")
 			mcp[name] = entry

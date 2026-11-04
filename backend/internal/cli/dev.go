@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 	"github.com/aoagents/agent-orchestrator/backend/internal/devimport"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 )
 
 type devImportProjectsOptions struct {

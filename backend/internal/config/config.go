@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"net"
 	"net/url"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 )
 
 // EnvComputerUse is set to "1" on a chat session's `ao mcp` server when the

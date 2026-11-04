@@ -17,6 +17,7 @@ type projectControlStore interface {
 	ListProjectRequests(context.Context, domain.ProjectID) ([]domain.ProjectRequest, error)
 }
 
+// ProjectControl reads ownership without claiming an unmanaged project.
 func (s *Service) ProjectControl(ctx context.Context, id domain.ProjectID) (domain.ProjectControl, error) {
 	if _, err := s.requireProject(ctx, id); err != nil {
 		return domain.ProjectControl{}, err
@@ -35,6 +36,7 @@ func (s *Service) ProjectControl(ctx context.Context, id domain.ProjectID) (doma
 	return c, nil
 }
 
+// SetProjectControl takes or releases ownership with a revision check.
 func (s *Service) SetProjectControl(ctx context.Context, id domain.ProjectID, kind, owner string, expected int64) (domain.ProjectControl, error) {
 	if _, err := s.requireProject(ctx, id); err != nil {
 		return domain.ProjectControl{}, err
@@ -57,6 +59,7 @@ func (s *Service) SetProjectControl(ctx context.Context, id domain.ProjectID, ki
 	return c, nil
 }
 
+// SubmitProjectRequest persists intake before notifying the current controller.
 func (s *Service) SubmitProjectRequest(ctx context.Context, in domain.ProjectRequest) (domain.ProjectRequest, error) {
 	project, err := s.requireProject(ctx, in.ProjectID)
 	if err != nil {
@@ -97,6 +100,7 @@ func (s *Service) notifyProjectController(ctx context.Context, control domain.Pr
 	}
 }
 
+// ProjectRequests reads the durable requirements awaiting controller action.
 func (s *Service) ProjectRequests(ctx context.Context, id domain.ProjectID) ([]domain.ProjectRequest, error) {
 	if _, err := s.requireProject(ctx, id); err != nil {
 		return nil, err

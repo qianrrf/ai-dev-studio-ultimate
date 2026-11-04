@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -33,6 +32,8 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/skillassets"
 	"github.com/aoagents/agent-orchestrator/backend/internal/termtheme"
 	"github.com/aoagents/agent-orchestrator/backend/internal/tmuxbin"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 )
 
 // Sentinel errors returned by the Session Manager; callers match them with

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ func TestDeliveryCLIUsesDaemonAndPreservesArgv(t *testing.T) {
 	var received deliveryRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/internal/telemetry/cli-invoked" {
-			w.WriteHeader(204)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		if r.URL.Path != "/api/v1/sessions/demo-1/delivery" {
@@ -23,7 +24,7 @@ func TestDeliveryCLIUsesDaemonAndPreservesArgv(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		if r.Method == "POST" {
+		if r.Method == http.MethodPost {
 			if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
 				t.Error(err)
 			}
@@ -51,9 +52,10 @@ func TestDeliveryCLIValidatesBeforeHTTP(t *testing.T) {
 		{"session", "delivery", "demo-1", "--request-id", "stray"},
 		{"session", "delivery", "demo-1", "--kind", "invalid", "--controller", "desktop", "--control-revision", "1", "--request-id", "x", "--base", "a", "--head", "b"},
 	} {
+		var usage usageError
 		if _, _, err := executeCLI(t, Deps{}, args...); err == nil {
 			t.Fatalf("invalid delivery accepted: %q", args)
-		} else if _, ok := err.(usageError); !ok {
+		} else if !errors.As(err, &usage) {
 			t.Fatalf("want usage error, got %T %v", err, err)
 		}
 	}

@@ -14,6 +14,7 @@ type deliveryService interface {
 	DeliveryEvidence(context.Context, domain.SessionID) ([]domain.DeliveryEvidence, error)
 }
 
+// DeliveryEvidenceResponse lists persisted operations and their current validity.
 type DeliveryEvidenceResponse struct {
 	Evidence []domain.DeliveryEvidence `json:"evidence"`
 }

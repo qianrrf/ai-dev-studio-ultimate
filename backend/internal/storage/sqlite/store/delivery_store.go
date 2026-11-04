@@ -29,6 +29,7 @@ func deliveryRecord(row gen.ProjectDeliveryEvidence) (domain.DeliveryEvidence, e
 	return out, nil
 }
 
+// ListDeliveryEvidence reads the worker operations in creation order.
 func (s *Store) ListDeliveryEvidence(ctx context.Context, worker domain.SessionID) ([]domain.DeliveryEvidence, error) {
 	rows, err := s.qr.ListDeliveryEvidence(ctx, string(worker))
 	if err != nil {
@@ -45,6 +46,7 @@ func (s *Store) ListDeliveryEvidence(ctx context.Context, worker domain.SessionI
 	return out, nil
 }
 
+// GetDeliveryEvidence reads one immutable operation and any retained result.
 func (s *Store) GetDeliveryEvidence(ctx context.Context, id string) (domain.DeliveryEvidence, error) {
 	row, err := s.qr.GetDeliveryEvidence(ctx, id)
 	if err != nil {
@@ -181,6 +183,7 @@ func (s *Store) ReserveDeliveryEvidence(ctx context.Context, in domain.DeliveryE
 	return out, fresh, err
 }
 
+// CompleteDeliveryEvidence records a result once, retaining uncertain operations.
 func (s *Store) CompleteDeliveryEvidence(ctx context.Context, id string, result domain.DeliveryResult, now time.Time) error {
 	encoded, err := json.Marshal(result)
 	if err != nil {
@@ -197,6 +200,7 @@ func (s *Store) CompleteDeliveryEvidence(ctx context.Context, id string, result 
 	return err
 }
 
+// CompletedReviewerMessage reads the final response of a completed review turn.
 func (s *Store) CompletedReviewerMessage(ctx context.Context, reviewer domain.SessionID) (string, string, error) {
 	row, err := s.qr.GetCompletedReviewerMessage(ctx, reviewer)
 	return row.ID, row.Text, err

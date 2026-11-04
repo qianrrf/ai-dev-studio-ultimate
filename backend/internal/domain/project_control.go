@@ -36,6 +36,7 @@ type ProjectRequest struct {
 	CreatedAt   time.Time           `json:"createdAt"`
 }
 
+// RequestAttachment retains a requirement attachment in the project inbox.
 type RequestAttachment struct {
 	Ext  string `json:"ext"`
 	Data []byte `json:"data"`

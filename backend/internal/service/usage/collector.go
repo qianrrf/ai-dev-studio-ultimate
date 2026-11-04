@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io"
 	"log/slog"
 	"os"
@@ -23,6 +22,8 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/pricing"
+
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 )
 
 const (
