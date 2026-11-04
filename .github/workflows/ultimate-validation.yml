@@ -53,6 +53,8 @@ jobs:
       - run: npm ci
       - run: npm ci
         working-directory: frontend
+      - run: npm ci
+        working-directory: packages/product-ui
       - name: Types, complete frontend suite and API types
         env:
           TZ: UTC
@@ -88,7 +90,10 @@ jobs:
         env:
           CGO_ENABLED: "0"
         run: |
+          npm ci --prefix ../packages/product-ui
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run make
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem out/make -Recurse -Filter *.exe | Get-FileHash -Algorithm SHA256 | Format-List
