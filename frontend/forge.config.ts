@@ -356,6 +356,7 @@ const config: ForgeConfig = {
 				// The name shown in the installer, the updater, the shortcuts, and
 				// Windows Apps. It matches the app's display name in main.ts.
 				productName: WINDOWS_DISPLAY_NAME,
+				protocols: [AUTH_PROTOCOL],
 				// Match the packaged binary name so the Start menu shortcut targets
 				// the real "agent-orchestrator.exe" (not "Agent Orchestrator.exe").
 				executableName: EXECUTABLE_NAME,

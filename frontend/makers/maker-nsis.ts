@@ -24,6 +24,8 @@ export type MakerNSISConfig = {
 	executableName?: string;
 	// Path to the Windows .ico used for the app and installer.
 	icon?: string;
+	// Register product URL schemes during install and remove them on uninstall.
+	protocols?: { name: string; schemes: string[] }[];
 	// Any extra electron-builder `nsis` options, merged over our defaults.
 	nsis?: Record<string, unknown>;
 	// Any extra electron-builder `win` options (e.g. a hard-coded
@@ -149,6 +151,7 @@ export default class MakerNSIS extends MakerBase<MakerNSISConfig> {
 				config: {
 					appId: cfg.appId,
 					productName: cfg.productName ?? appName,
+					...(cfg.protocols ? { protocols: cfg.protocols } : {}),
 					directories: { output },
 					// Forge owns publishing (the workflow uploads via `gh release`).
 					// `null` stops electron-builder from inferring a GitHub publish

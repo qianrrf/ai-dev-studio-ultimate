@@ -27,7 +27,8 @@ describe("MakerNSIS", () => {
 	});
 
 	it("builds an nsis target for the requested arch and forwards config", async () => {
-		const maker = new MakerNSIS({ appId: "dev.agent-orchestrator.desktop", icon: "assets/icon.ico" }, ["win32"]);
+		const protocols = [{ name: "AI Dev Studio Ultimate", schemes: ["ai-dev-studio-ultimate"] }];
+		const maker = new MakerNSIS({ appId: "dev.agent-orchestrator.desktop", icon: "assets/icon.ico", protocols }, ["win32"]);
 		// Forge resolves the (possibly arch-dependent) config before make().
 		await maker.prepareConfig(makeOptions.targetArch);
 		const artifacts = await maker.make(makeOptions);
@@ -39,6 +40,7 @@ describe("MakerNSIS", () => {
 		// electron-builder must not try to publish; the workflow does that.
 		expect(options.config.publish).toBeNull();
 		expect(options.config.appId).toBe("dev.agent-orchestrator.desktop");
+		expect(options.config.protocols).toEqual(protocols);
 		// productName falls back to appName when not set on the maker config.
 		expect(options.config.productName).toBe("Agent Orchestrator");
 		expect(options.config.win).toEqual({ icon: "assets/icon.ico" });
