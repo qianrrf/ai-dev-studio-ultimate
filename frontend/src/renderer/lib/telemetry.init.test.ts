@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Keep exercising the retained upstream algorithms with a fake transport.
+// The actual local edition boundary is covered without these overrides.
+vi.mock("../../shared/product", () => ({ PRODUCT_TELEMETRY_ENABLED: true }));
+vi.mock("../../shared/posthog-config", () => ({ DEFAULT_POSTHOG_PROJECT_KEY: "test-key", DEFAULT_POSTHOG_HOST: "https://example.test" }));
+
 // initTelemetry memoizes its result in a module-scoped promise, so each test
 // resets the module registry and re-mocks the heavy boundaries (posthog, the
 // Electron bridge) before importing. This exercises the real init control flow.

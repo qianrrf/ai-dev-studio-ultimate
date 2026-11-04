@@ -131,8 +131,8 @@ describe("native runtime resources", () => {
 		expect(extraResourcesForPlatform("win32")).not.toContain("dictation-helper");
 	});
 
-	it("bundles cloudflared only on macOS", () => {
-		expect(extraResourcesForPlatform("darwin")).toContain("cloudflared");
+	it("does not bundle cloudflared in the local edition", () => {
+		expect(extraResourcesForPlatform("darwin")).not.toContain("cloudflared");
 		expect(extraResourcesForPlatform("linux")).not.toContain("cloudflared");
 		expect(extraResourcesForPlatform("win32")).not.toContain("cloudflared");
 	});
@@ -353,8 +353,8 @@ describe("postMake artifact verification", () => {
 
 describe("Windows app labels", () => {
 	it("matches the installer display name without renaming the executable or bundle", async () => {
-		expect(WINDOWS_DISPLAY_NAME).toBe("Orchestrator.inc");
-		expect(appPackage.author).toBe(WINDOWS_DISPLAY_NAME);
+		expect(WINDOWS_DISPLAY_NAME).toBe("AI Dev Studio Ultimate");
+		expect(appPackage.author).toBe("Orchestrator.inc");
 		expect(config.packagerConfig?.win32metadata).toEqual({
 			FileDescription: WINDOWS_DISPLAY_NAME,
 			InternalName: WINDOWS_DISPLAY_NAME,
@@ -363,12 +363,12 @@ describe("Windows app labels", () => {
 		const windowsInstaller = config.makers?.find((maker) => maker instanceof MakerNSIS);
 		await windowsInstaller?.prepareConfig("x64");
 		expect(windowsInstaller?.config.productName).toBe(WINDOWS_DISPLAY_NAME);
-		expect(windowsInstaller?.config.appId).toBe("dev.agent-orchestrator.desktop");
-		expect(appPackage.name).toBe("agent-orchestrator");
-		expect(appPackage.productName).toBe("Orchestrator");
-		expect(config.packagerConfig?.executableName).toBe("agent-orchestrator");
-		expect(config.packagerConfig?.name).toBe("Agent Orchestrator");
-		expect(config.packagerConfig?.appBundleId).toBe("dev.agent-orchestrator.desktop");
+		expect(windowsInstaller?.config.appId).toBe("dev.ai-dev-studio-ultimate.desktop");
+		expect(appPackage.name).toBe("ai-dev-studio-ultimate");
+		expect(appPackage.productName).toBe("AI Dev Studio Ultimate");
+		expect(config.packagerConfig?.executableName).toBe("ai-dev-studio-ultimate");
+		expect(config.packagerConfig?.name).toBe("AI Dev Studio Ultimate");
+		expect(config.packagerConfig?.appBundleId).toBe("dev.ai-dev-studio-ultimate.desktop");
 	});
 });
 
@@ -387,8 +387,8 @@ describe("packaged authentication callback registration", () => {
 	it("declares ao-app in the macOS bundle and Linux package metadata", () => {
 		expect(config.packagerConfig?.protocols).toEqual([
 			{
-				name: "Orchestrator authentication callback",
-				schemes: ["ao-app"],
+				name: "AI Dev Studio Ultimate",
+				schemes: ["ai-dev-studio-ultimate"],
 			},
 		]);
 
@@ -402,7 +402,7 @@ describe("packaged authentication callback registration", () => {
 		]) {
 			const maker = makers.find((candidate) => candidate.name === name);
 			expect(maker?.config?.options?.mimeType).toEqual([
-				"x-scheme-handler/ao-app",
+				"x-scheme-handler/ai-dev-studio-ultimate",
 			]);
 		}
 	});

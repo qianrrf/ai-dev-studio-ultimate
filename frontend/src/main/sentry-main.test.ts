@@ -7,6 +7,12 @@ import { DEFAULT_ELECTRON_SENTRY_DSN, ELECTRON_SENTRY_ERROR_SAMPLE_RATE } from "
 import { DesktopTelemetryController } from "./desktop-telemetry-controller";
 import { clearMainSentryCache, electronMainSentryDsn, initMainSentry, sanitizeRendererCapture } from "./sentry-main";
 
+// Retained sender algorithms use a synthetic DSN and mocked SDK in this suite.
+vi.mock("../shared/sentry-config", async (original) => ({
+	...await original<typeof import("../shared/sentry-config")>(),
+	DEFAULT_ELECTRON_SENTRY_DSN: "https://synthetic@example.test/1",
+}));
+
 const sdkTransport = vi.hoisted(() => vi.fn());
 const sdk = vi.hoisted(() => ({
 	init: vi.fn<(options: ElectronMainOptions) => void>(),

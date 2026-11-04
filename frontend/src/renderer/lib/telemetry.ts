@@ -1193,7 +1193,8 @@ type PostHogInitOptions = NonNullable<Parameters<PostHogClient["init"]>[1]>;
 let posthog!: PostHogClient;
 
 async function loadPostHog(): Promise<PostHogClient> {
-	throw new Error("Telemetry is unavailable in this local edition.");
+	if (!PRODUCT_TELEMETRY_ENABLED) throw new Error("Telemetry is unavailable in this local edition.");
+	return (await import("posthog-js/dist/module.full.no-external")).default;
 }
 
 export function buildPostHogConfig(distinctId: string): PostHogInitOptions {
