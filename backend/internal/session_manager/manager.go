@@ -1149,7 +1149,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 	asyncChat := cfg.Async && mode == domain.SessionModeChat && m.chat != nil && (cfg.Kind == domain.KindOrchestrator || cfg.Kind == domain.KindWorker)
 
 	var prep *taskPreparation
-	if cfg.AutomationRunID == nil && cfg.Branch == "" {
+	if cfg.Control == nil && cfg.AutomationRunID == nil && cfg.Branch == "" {
 		prep = m.claimTaskPreparation(cfg.TaskPreparation, cfg.ProjectID)
 	}
 	var rec domain.SessionRecord
@@ -5774,7 +5774,8 @@ func normalizeWorkspacePath(p string) string {
 // ---- helpers ----
 
 func seedRecord(cfg ports.SpawnConfig, projectConfig domain.ProjectConfig, now time.Time) domain.SessionRecord {
-	return domain.SessionRecord{
+	rec := domain.SessionRecord{
+		Control:           cfg.Control,
 		ReadOnly:          cfg.ReadOnly,
 		ProjectID:         cfg.ProjectID,
 		IssueID:           cfg.IssueID,
@@ -5797,6 +5798,11 @@ func seedRecord(cfg ports.SpawnConfig, projectConfig domain.ProjectConfig, now t
 		AutoInjectReview:  true,
 		AutoInjectCI:      true,
 	}
+	if cfg.Control != nil {
+		rec.ProvisionState = domain.SessionProvisionProvisioning
+		rec.AutoReviewEnabled = false
+	}
+	return rec
 }
 
 func defaultSessionBranch(id domain.SessionID, kind domain.SessionKind, prefix, branchNamespace string) string {

@@ -278,6 +278,10 @@ func (c *SessionsController) Register(r chi.Router) {
 	r.Get("/orchestrators", c.listOrchestrators)
 	r.Post("/orchestrators", c.spawnOrchestrator)
 	r.Post("/orchestrators/delegate", c.delegateTask)
+	r.Get("/projects/{id}/control", c.getProjectControl)
+	r.Put("/projects/{id}/control", c.setProjectControl)
+	r.Get("/projects/{id}/requests", c.listProjectRequests)
+	r.Post("/projects/{id}/requests", c.submitProjectRequest)
 	r.Post("/projects/{id}/tasks/prepare", c.prepareTask)
 	r.Delete("/task-preparations/{token}", c.cancelTaskPreparation)
 	r.Get("/orchestrators/{id}", c.getOrchestrator)
@@ -384,7 +388,7 @@ func (c *SessionsController) spawn(w http.ResponseWriter, r *http.Request) {
 		keyless.Attachments = nil
 		requestHash = clientRequestFingerprint("session", keyless, attachments)
 	}
-	sess, promptBytes, systemPromptBytes, err := c.Svc.Spawn(r.Context(), ports.SpawnConfig{ReadOnly: in.ReadOnly, ProjectID: in.ProjectID, IssueID: in.IssueID, ParentSessionID: in.ParentSessionID, TrackerProvider: in.TrackerProvider, Kind: in.Kind, Harness: in.Harness, Branch: in.Branch, RequestedMode: in.Mode, Prompt: in.Prompt, RequestedOutput: in.RequestedOutput, DisplayName: displayName, Attachments: attachments, AgentConfig: ports.AgentConfig{Model: in.Model, Effort: in.Effort, Permissions: in.ApprovalMode}, EffortOverride: strings.TrimSpace(in.Effort) != "", ClientRequestID: in.ClientRequestID, ClientRequestHash: requestHash})
+	sess, promptBytes, systemPromptBytes, err := c.Svc.Spawn(r.Context(), ports.SpawnConfig{Control: in.Control, ReadOnly: in.ReadOnly, ProjectID: in.ProjectID, IssueID: in.IssueID, ParentSessionID: in.ParentSessionID, TrackerProvider: in.TrackerProvider, Kind: in.Kind, Harness: in.Harness, Branch: in.Branch, RequestedMode: in.Mode, Prompt: in.Prompt, RequestedOutput: in.RequestedOutput, DisplayName: displayName, Attachments: attachments, AgentConfig: ports.AgentConfig{Model: in.Model, Effort: in.Effort, Permissions: in.ApprovalMode}, EffortOverride: strings.TrimSpace(in.Effort) != "", ClientRequestID: in.ClientRequestID, ClientRequestHash: requestHash})
 	if err != nil {
 		envelope.WriteError(w, r, err)
 		return
@@ -2311,6 +2315,7 @@ func (c *SessionsController) delegateTask(w http.ResponseWriter, r *http.Request
 	out, err := c.Svc.DelegateTask(r.Context(), sessionsvc.DelegateTaskInput{
 		ClientRequestID:   in.ClientRequestID,
 		ClientRequestHash: requestHash,
+		Control:           in.Control,
 		ProjectID:         in.ProjectID,
 		Brief:             domain.SanitizeControlChars(in.Brief),
 		Branch:            domain.SanitizeControlChars(strings.TrimSpace(in.Branch)),
@@ -2326,7 +2331,7 @@ func (c *SessionsController) delegateTask(w http.ResponseWriter, r *http.Request
 		envelope.WriteError(w, r, err)
 		return
 	}
-	envelope.WriteJSON(w, http.StatusAccepted, DelegateTaskResponse{OK: true, WorkerID: out.WorkerID, OrchestratorID: out.OrchestratorID})
+	envelope.WriteJSON(w, http.StatusAccepted, DelegateTaskResponse{OK: true, RequestID: out.RequestID, WorkerID: out.WorkerID, OrchestratorID: out.OrchestratorID})
 }
 
 func validClientRequestID(id string) bool {

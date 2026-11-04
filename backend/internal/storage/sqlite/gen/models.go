@@ -606,6 +606,31 @@ type Project struct {
 	Kind          string
 }
 
+type ProjectControl struct {
+	ProjectID string
+	OwnerKind string
+	OwnerID   string
+	Revision  int64
+	UpdatedAt time.Time
+}
+
+type ProjectDispatch struct {
+	RequestID string
+	ProjectID string
+	OwnerID   string
+	Revision  int64
+	SessionID string
+	CreatedAt time.Time
+}
+
+type ProjectRequest struct {
+	ID          string
+	ProjectID   string
+	Brief       string
+	Attachments string
+	CreatedAt   time.Time
+}
+
 type Report struct {
 	ID                 string
 	SessionID          string

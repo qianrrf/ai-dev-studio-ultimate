@@ -307,6 +307,10 @@ export function useTaskLaunch({ projectId, hostId }: {
 						error.details,
 					);
 				}
+				if (data?.requestId) {
+					setStatus(t("newTask.requirementSaved", { defaultValue: "需求已保存，等待 Codex 主控安排。" }));
+					return "";
+				}
 				if (!data?.workerId) throw new Error(t("newTask.noSession"));
 				void captureRendererEvent("ao.renderer.task_create_succeeded", { project_id: input.projectId });
 				return data.workerId;
@@ -1375,7 +1379,7 @@ export function TaskComposer({
 	}, [task.isSubmitting, onSubmittingChange]);
 	useEffect(() => () => onSubmittingChange?.(false), [onSubmittingChange]);
 	// The hook records a failure for display, so a rejected create just stays put.
-	const settle = (created: Promise<string>) => void created.then(onCreated, () => undefined);
+	const settle = (created: Promise<string>) => void created.then((id) => { if (id) onCreated(id); }, () => undefined);
 
 	return (
 		<TaskComposerView

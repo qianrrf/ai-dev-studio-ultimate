@@ -23,7 +23,7 @@ percentage is inferred from source changes.
 | Gate | Current observed evidence | Remaining acceptance |
 | --- | --- | --- |
 | M1 build | Original baseline worktree retained; Microsoft installer restarted with explicit VC tools and SDK selections; still downloading | Complete compiler installation, original installer and build log |
-| M2 control | SQLite CAS ownership/release, intake with attachment preservation, transactional seed/dispatch reservation, HTTP and CLI source/tests added | UI/automation intake, report routing, complete concurrency/recovery tests and actual handovers |
+| M2 control | SQLite CAS ownership/release, attachment-preserving intake, transactional dispatch, two-worker concurrency tests, HTTP/CLI and settings controls, automation intake and report routing | Fence existing-session continuations with delivery receipts; real handovers |
 | M3 loop | Persisted readOnly foundation; stable native filesystem probe passed | Immutable base/head review, actual test evidence, bounded rework and both controller loops |
 | M4 product | Constants and isolated product identity fixed in the accepted plan | Branding, data/port identities, disabled upstream services, candidate package |
 | M5 install | Not executed | Installation, recovery, upgrade, uninstall, coexistence, SHA-256 and source tag |
@@ -50,3 +50,22 @@ percentage is inferred from source changes.
 
 Raw logs and scratch workspaces remain outside Git under the task cache.
 The previous uncommitted Worker calculator fix is preserved.
+
+## Control checkpoint (20:56)
+
+- Settings now shows controller ownership/revision, retained requirements and
+  explicit internal/external takeover/release actions. Merely opening the page
+  does not start a model. The daemon pins Codex/DSH/Codex roles on activation.
+- Concurrent dispatch testing admits exactly two of three simultaneous worker
+  seeds; cross-project internal controllers and stale/released claims fail.
+- Focused storage/controller/service tests and frontend typecheck passed.
+  Control/settings/API-client frontend suites: 99 tests passed. Earlier intake
+  and New Chat suites: 197 tests passed.
+- Complete CLI suite rerun after command classification repair: only the retained
+  baseline Windows symlink test failed. All four full-HTTP failure names also
+  occur in the retained baseline log; neither full suite is labeled passed.
+- Complete storage suite, Go build and vet previously passed. Subsequent delivery
+  changes still require their own complete affected suites before handover.
+- Microsoft setup remains incomplete (`vswhere isComplete=false`), stalled on
+  CMake package delivery after compiler/MSBuild files appeared. This is not a
+  verified compiler installation or an original-installer pass.

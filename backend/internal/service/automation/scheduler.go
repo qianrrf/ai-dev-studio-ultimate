@@ -139,6 +139,26 @@ func (s *Service) dispatch(ctx context.Context, store schedulerStore, run domain
 		_, markErr := store.FailAutomationRun(context.WithoutCancel(ctx), run.ID, message, now)
 		return errors.Join(err, markErr)
 	}
+	if controls, ok := s.store.(interface {
+		GetProjectControl(context.Context, domain.ProjectID) (domain.ProjectControl, bool, error)
+		AddProjectRequest(context.Context, domain.ProjectRequest) (domain.ProjectRequest, error)
+		CompleteAutomationIntake(context.Context, domain.AutomationRunID, time.Time) (bool, error)
+	}); ok {
+		_, managed, err := controls.GetProjectControl(ctx, definition.ProjectID)
+		if err != nil {
+			return err
+		}
+		if managed {
+			_, err := controls.AddProjectRequest(ctx, domain.ProjectRequest{ID: "automation:" + string(run.ID), ProjectID: definition.ProjectID, Brief: definition.Prompt, CreatedAt: now})
+			if err != nil {
+				return err
+			}
+			// This automation delivered its requirement. Execution belongs to the
+			// controller and uses ordinary worker sessions, not an automation clone.
+			_, err = controls.CompleteAutomationIntake(context.WithoutCancel(ctx), run.ID, now)
+			return err
+		}
+	}
 	if s.spawner == nil {
 		err := fmt.Errorf("session spawner is unavailable")
 		_, releaseErr := store.ReleaseAutomationRun(context.WithoutCancel(ctx), run.ID, runError(err), now)

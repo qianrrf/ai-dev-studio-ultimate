@@ -204,6 +204,22 @@ func (c *Coordinator) deliverProject(ctx context.Context, projectID domain.Proje
 }
 
 func (c *Coordinator) activeOrchestrator(ctx context.Context, projectID domain.ProjectID) (domain.SessionRecord, bool, error) {
+	if controls, ok := c.store.(interface {
+		GetProjectControl(context.Context, domain.ProjectID) (domain.ProjectControl, bool, error)
+	}); ok {
+		control, managed, err := controls.GetProjectControl(ctx, projectID)
+		if err != nil {
+			return domain.SessionRecord{}, false, err
+		}
+		if managed {
+			if control.OwnerKind != "internal" {
+				return domain.SessionRecord{}, false, nil
+			}
+			rec, found, err := c.store.GetSession(ctx, domain.SessionID(control.OwnerID))
+			valid := found && rec.ProjectID == projectID && rec.Kind == domain.KindOrchestrator && rec.Harness == domain.HarnessCodex && rec.Mode == domain.SessionModeChat && !rec.IsTerminated && rec.Activity.State != domain.ActivityExited
+			return rec, valid, err
+		}
+	}
 	recs, err := c.store.ListSessions(ctx, projectID)
 	if err != nil {
 		return domain.SessionRecord{}, false, err

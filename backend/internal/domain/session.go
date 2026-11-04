@@ -265,6 +265,8 @@ type SessionMetadata struct {
 // facts: identity, agent harness, activity_state, is_terminated, and operational
 // metadata. The user-facing Status is derived from these facts plus PR facts.
 type SessionRecord struct {
+	// Control is transient authorization for the atomic session seed insert.
+	Control *ControlClaim `json:"-"`
 	// ReadOnly is an immutable launch constraint, preserved across recovery.
 	ReadOnly  bool      `json:"readOnly,omitempty"`
 	ID        SessionID `json:"id"`

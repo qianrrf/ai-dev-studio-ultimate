@@ -4483,6 +4483,89 @@ paths:
       summary: Replace a project's per-project config
       tags:
       - projects
+  /api/v1/projects/{id}/control:
+    get:
+      operationId: getProjectControl
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectControl'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Read project controller ownership and revision
+      tags:
+      - projects
+    put:
+      operationId: setProjectControl
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectControlRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectControl'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Take over or release controller ownership using a revision check
+      tags:
+      - projects
   /api/v1/projects/{id}/permissions:
     delete:
       operationId: forgetProjectPermissions
@@ -4564,6 +4647,89 @@ paths:
                 $ref: '#/components/schemas/APIError'
           description: Internal Server Error
       summary: Remember project permissions for future sessions
+      tags:
+      - projects
+  /api/v1/projects/{id}/requests:
+    get:
+      operationId: listProjectRequests
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRequestsResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Read durable user requirements for controller reconciliation
+      tags:
+      - projects
+    post:
+      operationId: submitProjectRequest
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectIntakeRequest'
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRequest'
+          description: Accepted
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Submit an idempotent requirement without dispatching a worker
       tags:
       - projects
   /api/v1/projects/{id}/tasks/prepare:
@@ -15680,6 +15846,17 @@ components:
         disabled:
           type: boolean
       type: object
+    ControlClaim:
+      properties:
+        ownerId:
+          type: string
+        revision:
+          format: int64
+          type: integer
+      required:
+      - ownerId
+      - revision
+      type: object
     ControllersBrowserChromeChannel:
       properties:
         available:
@@ -17228,6 +17405,8 @@ components:
         clientRequestId:
           maxLength: 128
           type: string
+        control:
+          $ref: '#/components/schemas/ControlClaim'
         effort:
           maxLength: 64
           type:
@@ -17255,11 +17434,12 @@ components:
           type: boolean
         orchestratorId:
           type: string
+        requestId:
+          type: string
         workerId:
           type: string
       required:
       - ok
-      - workerId
       type: object
     DeleteSessionResponse:
       properties:
@@ -18932,6 +19112,51 @@ components:
         workersRequestReview:
           type: boolean
       type: object
+    ProjectControl:
+      properties:
+        ownerId:
+          type: string
+        ownerKind:
+          enum:
+          - internal
+          - external
+          - unowned
+          type: string
+        projectId:
+          type: string
+        revision:
+          format: int64
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+      - projectId
+      - ownerKind
+      - ownerId
+      - revision
+      - updatedAt
+      type: object
+    ProjectControlRequest:
+      properties:
+        expectedRevision:
+          format: int64
+          minimum: 0
+          type: integer
+        ownerId:
+          maxLength: 128
+          type: string
+        ownerKind:
+          enum:
+          - internal
+          - external
+          - unowned
+          type: string
+      required:
+      - ownerKind
+      - ownerId
+      - expectedRevision
+      type: object
     ProjectGetResponse:
       properties:
         project:
@@ -18945,10 +19170,56 @@ components:
       - status
       - project
       type: object
+    ProjectIntakeRequest:
+      properties:
+        attachments:
+          items:
+            $ref: '#/components/schemas/AttachmentInput'
+          type: array
+        brief:
+          maxLength: 16384
+          type: string
+        id:
+          maxLength: 128
+          type: string
+      required:
+      - id
+      - brief
+      type: object
     ProjectOrDegraded:
       oneOf:
       - $ref: '#/components/schemas/Project'
       - $ref: '#/components/schemas/DegradedProject'
+      type: object
+    ProjectRequest:
+      properties:
+        attachments:
+          items:
+            $ref: '#/components/schemas/RequestAttachment'
+          type: array
+        brief:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          type: string
+        projectId:
+          type: string
+      required:
+      - id
+      - projectId
+      - brief
+      - createdAt
+      type: object
+    ProjectRequestsResponse:
+      properties:
+        requests:
+          items:
+            $ref: '#/components/schemas/ProjectRequest'
+          type: array
+      required:
+      - requests
       type: object
     ProjectResponse:
       properties:
@@ -19361,6 +19632,17 @@ components:
       - projectId
       - createdAt
       - repeatCount
+      type: object
+    RequestAttachment:
+      properties:
+        data:
+          format: base64
+          type: string
+        ext:
+          type: string
+      required:
+      - ext
+      - data
       type: object
     ResolveCommentsResponse:
       properties:
@@ -21312,6 +21594,8 @@ components:
         clientRequestId:
           maxLength: 128
           type: string
+        control:
+          $ref: '#/components/schemas/ControlClaim'
         displayName:
           maxLength: 100
           type: string

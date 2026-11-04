@@ -1823,6 +1823,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read project controller ownership and revision */
+        get: operations["getProjectControl"];
+        /** Take over or release controller ownership using a revision check */
+        put: operations["setProjectControl"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/permissions": {
         parameters: {
             query?: never;
@@ -1839,6 +1857,24 @@ export interface paths {
         head?: never;
         /** Remember project permissions for future sessions */
         patch: operations["setProjectPermissions"];
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read durable user requirements for controller reconciliation */
+        get: operations["listProjectRequests"];
+        put?: never;
+        /** Submit an idempotent requirement without dispatching a worker */
+        post: operations["submitProjectRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/projects/{id}/tasks/prepare": {
@@ -5397,6 +5433,11 @@ export interface components {
         ContainerReapConfig: {
             disabled?: boolean;
         };
+        ControlClaim: {
+            ownerId: string;
+            /** Format: int64 */
+            revision: number;
+        };
         ControllersBrowserChromeChannel: {
             available: boolean;
             manifestPath: string;
@@ -5958,6 +5999,7 @@ export interface components {
             branch?: string;
             brief: string;
             clientRequestId?: string;
+            control?: components["schemas"]["ControlClaim"];
             effort?: null | string;
             /** @enum {string} */
             mode?: "tui" | "chat";
@@ -5968,7 +6010,8 @@ export interface components {
         DelegateTaskResponse: {
             ok: boolean;
             orchestratorId?: string;
-            workerId: string;
+            requestId?: string;
+            workerId?: string;
         };
         DeleteSessionResponse: {
             ok: boolean;
@@ -6610,12 +6653,45 @@ export interface components {
             worker?: components["schemas"]["RoleOverride"];
             workersRequestReview?: boolean;
         };
+        ProjectControl: {
+            ownerId: string;
+            /** @enum {string} */
+            ownerKind: "internal" | "external" | "unowned";
+            projectId: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ProjectControlRequest: {
+            /** Format: int64 */
+            expectedRevision: number;
+            ownerId: string;
+            /** @enum {string} */
+            ownerKind: "internal" | "external" | "unowned";
+        };
         ProjectGetResponse: {
             project: components["schemas"]["ProjectOrDegraded"];
             /** @enum {string} */
             status: "ok" | "degraded";
         };
+        ProjectIntakeRequest: {
+            attachments?: components["schemas"]["AttachmentInput"][];
+            brief: string;
+            id: string;
+        };
         ProjectOrDegraded: components["schemas"]["Project"] | components["schemas"]["DegradedProject"];
+        ProjectRequest: {
+            attachments?: components["schemas"]["RequestAttachment"][];
+            brief: string;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            projectId: string;
+        };
+        ProjectRequestsResponse: {
+            requests: components["schemas"]["ProjectRequest"][];
+        };
         ProjectResponse: {
             project: components["schemas"]["Project"];
         };
@@ -6790,6 +6866,11 @@ export interface components {
             repeatCount: number;
             sessionId: string;
             state?: string;
+        };
+        RequestAttachment: {
+            /** Format: base64 */
+            data: string;
+            ext: string;
         };
         ResolveCommentsResponse: {
             ok: boolean;
@@ -7569,6 +7650,7 @@ export interface components {
             attachments?: components["schemas"]["AttachmentInput"][];
             branch?: string;
             clientRequestId?: string;
+            control?: components["schemas"]["ControlClaim"];
             displayName?: string;
             effort?: string;
             /** @enum {string} */
@@ -14158,6 +14240,110 @@ export interface operations {
             };
         };
     };
+    getProjectControl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectControl"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    setProjectControl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectControlRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectControl"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     forgetProjectPermissions: {
         parameters: {
             query?: never;
@@ -14244,6 +14430,110 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    listProjectRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectRequestsResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    submitProjectRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectIntakeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectRequest"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

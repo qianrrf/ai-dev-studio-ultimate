@@ -195,6 +195,7 @@ func newProjectCommand(ctx *commandContext) *cobra.Command {
 	cmd.AddCommand(newProjectAddCommand(ctx))
 	cmd.AddCommand(newProjectSetConfigCommand(ctx))
 	cmd.AddCommand(newProjectRemoveCommand(ctx))
+	cmd.AddCommand(newProjectControlCommand(ctx), newProjectRequestCommand(ctx), newProjectInboxCommand(ctx))
 	return cmd
 }
 

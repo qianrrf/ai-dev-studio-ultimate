@@ -159,6 +159,13 @@ func schemaName(_ reflect.Type, defaultName string) string {
 // by projectOperations(). Add an entry when a new contract type is introduced;
 // the drift test fails until the spec is regenerated, which flags the gap.
 var schemaNames = map[string]string{ //nolint:gosec // Public OpenAPI type names include reset-credit contracts; no credential value is stored here.
+	"DomainControlClaim":                                   "ControlClaim",
+	"DomainProjectControl":                                 "ProjectControl",
+	"DomainProjectRequest":                                 "ProjectRequest",
+	"DomainRequestAttachment":                              "RequestAttachment",
+	"ControllersProjectControlRequest":                     "ProjectControlRequest",
+	"ControllersProjectIntakeRequest":                      "ProjectIntakeRequest",
+	"ControllersProjectRequestsResponse":                   "ProjectRequestsResponse",
 	"ControllersTelemetryIdentityResponse":                 "TelemetryIdentityResponse",
 	"ControllersAgentAccountIDParam":                       "AgentAccountIDParam",
 	"ControllersAgentAccountLoginIDParam":                  "AgentAccountLoginIDParam",
@@ -3758,6 +3765,32 @@ func sessionOperations() []operation {
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/projects/{id}/control", id: "getProjectControl", tag: "projects",
+			summary:    "Read project controller ownership and revision",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			resps:      []respUnit{{http.StatusOK, domain.ProjectControl{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
+		},
+		{
+			method: http.MethodPut, path: "/api/v1/projects/{id}/control", id: "setProjectControl", tag: "projects",
+			summary:    "Take over or release controller ownership using a revision check",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			reqBody:    controllers.ProjectControlRequest{},
+			resps:      []respUnit{{http.StatusOK, domain.ProjectControl{}}, {http.StatusBadRequest, envelope.APIError{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusConflict, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/projects/{id}/requests", id: "listProjectRequests", tag: "projects",
+			summary:    "Read durable user requirements for controller reconciliation",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			resps:      []respUnit{{http.StatusOK, controllers.ProjectRequestsResponse{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/projects/{id}/requests", id: "submitProjectRequest", tag: "projects",
+			summary:    "Submit an idempotent requirement without dispatching a worker",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			reqBody:    controllers.ProjectIntakeRequest{},
+			resps:      []respUnit{{http.StatusAccepted, domain.ProjectRequest{}}, {http.StatusBadRequest, envelope.APIError{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusConflict, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
 		},
 		{
 			method: http.MethodPost, path: "/api/v1/orchestrators/delegate", id: "delegateTask", tag: "sessions",

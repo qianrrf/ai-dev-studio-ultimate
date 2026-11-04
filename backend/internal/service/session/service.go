@@ -354,6 +354,11 @@ func (s *Service) SetUsageArchiveFlush(flush func(context.Context)) {
 // Spawn creates a session and returns the API-facing read model plus
 // ephemeral prompt size measurements.
 func (s *Service) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Session, int, int, error) {
+	if cfg.Kind != domain.KindOrchestrator {
+		if _, err := s.checkProjectClaim(ctx, cfg.ProjectID, cfg.Control); err != nil {
+			return domain.Session{}, 0, 0, err
+		}
+	}
 	if rec, found, err := s.replayClientRequest(ctx, cfg.ClientRequestID, cfg.ClientRequestHash); err != nil {
 		return domain.Session{}, 0, 0, err
 	} else if found {
@@ -445,11 +450,33 @@ func (s *Service) spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 // every created session emits ao.session.spawned or ao.session.spawn_failed
 // exactly once. Client-request replays return before reaching it.
 func (s *Service) spawnWithTelemetry(ctx context.Context, cfg ports.SpawnConfig, project domain.ProjectRecord) (domain.SessionRecord, int, int, error) {
+	managed, err := s.isControlledProject(ctx, cfg.ProjectID)
+	if err != nil {
+		return domain.SessionRecord{}, 0, 0, err
+	}
 	// CLI and orchestrator workers use this same naming policy as desktop tasks.
-	if !cfg.NameFromPrompt && cfg.Kind == domain.KindWorker && project.ID != "" &&
+	if !managed && !cfg.NameFromPrompt && cfg.Kind == domain.KindWorker && project.ID != "" &&
 		project.Kind.WithDefault() != domain.ProjectKindScratch && strings.TrimSpace(cfg.Branch) == "" && strings.TrimSpace(cfg.Prompt) != "" {
 		cfg.NameFromPrompt = true
 		cfg.KeepDisplayName = cfg.DisplayName != ""
+	}
+	if managed {
+		cfg.Async = true
+		cfg.NameFromPrompt = false
+		cfg.TaskPreparation = ""
+		if cfg.RequestedMode != "" && cfg.RequestedMode != domain.SessionModeChat {
+			return domain.SessionRecord{}, 0, 0, apierr.Invalid("CODEX_CONTROL_CHAT_REQUIRED", "Controlled projects require Chat sessions", nil)
+		}
+		cfg.RequestedMode = domain.SessionModeChat
+		if cfg.AgentConfig.Permissions == "" {
+			cfg.AgentConfig.Permissions = domain.PermissionModeDefault
+		}
+		if cfg.Harness == "" {
+			cfg.Harness = domain.HarnessDeepSeek
+			if cfg.Kind == domain.KindOrchestrator || cfg.ReadOnly {
+				cfg.Harness = domain.HarnessCodex
+			}
+		}
 	}
 	start := s.now()
 	firstSession, err := s.isFirstSession(ctx)
@@ -1391,6 +1418,15 @@ func (s *Service) Unpin(ctx context.Context, id domain.SessionID) (domain.Sessio
 // SetReviewerHarness persists the reviewer selected for this session. Empty
 // clears the preference and restores the project-level fallback.
 func (s *Service) SetReviewerHarness(ctx context.Context, id domain.SessionID, harness domain.ReviewerHarness, config domain.AgentConfig) (domain.Session, error) {
+	if rec, found, err := s.store.GetSession(ctx, id); err != nil {
+		return domain.Session{}, err
+	} else if found {
+		if managed, err := s.isControlledProject(ctx, rec.ProjectID); err != nil {
+			return domain.Session{}, err
+		} else if managed && harness != domain.ReviewerHarness(domain.HarnessCodex) {
+			return domain.Session{}, apierr.Invalid("CODEX_REVIEWER_REQUIRED", "Controlled projects require an independent Codex reviewer", nil)
+		}
+	}
 	if harness != "" && !harness.IsKnown() {
 		return domain.Session{}, apierr.Invalid("UNKNOWN_REVIEWER_HARNESS", "Unknown reviewer harness", nil)
 	}
@@ -1409,6 +1445,17 @@ func (s *Service) SetReviewerHarness(ctx context.Context, id domain.SessionID, h
 
 // SetAutoReview enables or disables daemon-side review automation for a session.
 func (s *Service) SetAutoReview(ctx context.Context, id domain.SessionID, enabled bool) (domain.Session, error) {
+	if enabled {
+		if rec, found, err := s.store.GetSession(ctx, id); err != nil {
+			return domain.Session{}, err
+		} else if found {
+			if managed, err := s.isControlledProject(ctx, rec.ProjectID); err != nil {
+				return domain.Session{}, err
+			} else if managed {
+				return domain.Session{}, apierr.Invalid("CONTROLLER_REVIEW_REQUIRED", "The current Codex controller must request independent review", nil)
+			}
+		}
+	}
 	updated, err := s.store.SetSessionAutoReview(ctx, id, enabled, s.now())
 	if err != nil {
 		return domain.Session{}, fmt.Errorf("set auto review %s: %w", id, err)
@@ -1961,6 +2008,10 @@ func toSpawnAPIError(err error) error {
 		return apierr.Conflict("WORKSPACE_PROVISION_FAILED", setupErr.Error(), nil)
 	}
 	switch {
+	case errors.Is(err, domain.ErrProjectControlConflict):
+		return apierr.Conflict("PROJECT_CONTROL_CONFLICT", "Controller ownership or request changed; refresh project control and reconcile existing tasks before retrying", nil)
+	case errors.Is(err, domain.ErrProjectWorkerCapacity):
+		return apierr.Conflict("PROJECT_WORKER_CAPACITY", "Two workers are already executing in this project", nil)
 	case errors.Is(err, sessionmanager.ErrClientRequestConflict):
 		return apierr.Conflict("CLIENT_REQUEST_CONFLICT", "clientRequestId belongs to a different task", nil)
 	case errors.Is(err, sessionmanager.ErrClientRequestIncomplete):

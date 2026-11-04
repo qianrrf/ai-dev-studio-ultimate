@@ -20,6 +20,9 @@ import (
 const maxDisplayNameLen = 100
 
 type spawnOptions struct {
+	controller      string
+	controlRevision int64
+	requestID       string
 	readOnly        bool
 	project         string
 	standalone      bool
@@ -42,20 +45,22 @@ type spawnOptions struct {
 // spawnRequest mirrors the daemon's SpawnSessionRequest body for
 // POST /api/v1/sessions. The CLI keeps its own copy so it need not import httpd.
 type spawnRequest struct {
-	ReadOnly        bool   `json:"readOnly,omitempty"`
-	ProjectID       string `json:"projectId,omitempty"`
-	IssueID         string `json:"issueId,omitempty"`
-	ParentSessionID string `json:"parentSessionId,omitempty"`
-	TrackerProvider string `json:"trackerProvider,omitempty"`
-	Kind            string `json:"kind,omitempty"`
-	Mode            string `json:"mode,omitempty"`
-	Harness         string `json:"harness,omitempty"`
-	Branch          string `json:"branch,omitempty"`
-	Prompt          string `json:"prompt,omitempty"`
-	Model           string `json:"model,omitempty"`
-	Effort          string `json:"effort,omitempty"`
-	RequestedOutput string `json:"requestedOutput,omitempty"`
-	DisplayName     string `json:"displayName"`
+	Control         *controlClaim `json:"control,omitempty"`
+	ClientRequestID string        `json:"clientRequestId,omitempty"`
+	ReadOnly        bool          `json:"readOnly,omitempty"`
+	ProjectID       string        `json:"projectId,omitempty"`
+	IssueID         string        `json:"issueId,omitempty"`
+	ParentSessionID string        `json:"parentSessionId,omitempty"`
+	TrackerProvider string        `json:"trackerProvider,omitempty"`
+	Kind            string        `json:"kind,omitempty"`
+	Mode            string        `json:"mode,omitempty"`
+	Harness         string        `json:"harness,omitempty"`
+	Branch          string        `json:"branch,omitempty"`
+	Prompt          string        `json:"prompt,omitempty"`
+	Model           string        `json:"model,omitempty"`
+	Effort          string        `json:"effort,omitempty"`
+	RequestedOutput string        `json:"requestedOutput,omitempty"`
+	DisplayName     string        `json:"displayName"`
 }
 
 type spawnResult struct {
@@ -78,6 +83,9 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 			"fresh isolated workspace. Git projects use worktrees; standalone agents use an AO-managed plain directory.",
 		Args: noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if (opts.controller != "" || cmd.Flags().Changed("control-revision")) && (opts.controller == "" || opts.controlRevision < 1 || opts.requestID == "") {
+				return usageError{fmt.Errorf("controlled dispatch requires --controller, --control-revision >= 1 and --request-id")}
+			}
 			if opts.standalone && strings.TrimSpace(opts.project) != "" {
 				return usageError{fmt.Errorf("--standalone and --project cannot be used together")}
 			}
@@ -166,6 +174,7 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 				}
 			}
 			req := spawnRequest{
+				ClientRequestID: opts.requestID,
 				ReadOnly:        opts.readOnly,
 				ProjectID:       opts.project,
 				IssueID:         opts.issue,
@@ -180,6 +189,9 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 				Effort:          strings.TrimSpace(opts.effort),
 				RequestedOutput: opts.output,
 				DisplayName:     name,
+			}
+			if opts.controller != "" {
+				req.Control = &controlClaim{OwnerID: opts.controller, Revision: opts.controlRevision}
 			}
 			var res spawnResult
 			if err := ctx.postSetupJSON(cmd.Context(), "sessions", req, &res); err != nil {
@@ -224,6 +236,9 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
+	f.StringVar(&opts.controller, "controller", "", "Current project controller identity")
+	f.Int64Var(&opts.controlRevision, "control-revision", 0, "Current controller revision")
+	f.StringVar(&opts.requestID, "request-id", "", "Idempotent dispatch ID")
 	// --agent is an alias for --harness so the more intuitive `ao spawn --agent
 	// droid` works identically; both resolve to the same harness flag.
 	f.SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {

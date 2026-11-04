@@ -219,6 +219,11 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 		interfaceMode: "chat" | "tui",
 		target: { projectId: string; hostId?: string },
 	) => {
+		if (!sessionId) {
+			setEcho(undefined);
+			setLaunched(undefined);
+			return;
+		}
 		// The session's chat shows the brief from its first frame; cloud and
 		// terminal sessions open on their own surfaces and need none of it.
 		if (!taskRef.current.isCloudProject && interfaceMode === "chat") {

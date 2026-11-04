@@ -28,6 +28,7 @@ const (
 // may be empty to open an idle worker that the user can instruct later. Empty
 // RequestedAgent means the spawn uses the project's worker-agent default.
 type DelegateTaskInput struct {
+	Control           *domain.ControlClaim
 	ProjectID         domain.ProjectID
 	Brief             string
 	RequestedAgent    domain.AgentHarness
@@ -45,12 +46,16 @@ type DelegateTaskInput struct {
 // DelegateTaskOutcome identifies the spawned worker. OrchestratorID remains
 // optional for wire compatibility; title refinement never requires one.
 type DelegateTaskOutcome struct {
+	RequestID      string
 	OrchestratorID domain.SessionID
 	WorkerID       domain.SessionID
 }
 
 // PrepareTask starts the reversible worktree-only half of task creation.
 func (s *Service) PrepareTask(ctx context.Context, projectID domain.ProjectID) (string, error) {
+	if managed, err := s.isControlledProject(ctx, projectID); err != nil || managed {
+		return "", err
+	}
 	project, err := s.requireProject(ctx, projectID)
 	if err != nil {
 		return "", err
@@ -69,6 +74,24 @@ func (s *Service) CancelTaskPreparation(ctx context.Context, token string) error
 // provisional display name derived from the task brief. Git tasks finalize
 // title and workspace names during provisioning; Scratch titles refine after spawn.
 func (s *Service) DelegateTask(ctx context.Context, in DelegateTaskInput) (DelegateTaskOutcome, error) {
+	if managed, err := s.isControlledProject(ctx, in.ProjectID); err != nil {
+		return DelegateTaskOutcome{}, err
+	} else if managed && in.Control == nil {
+		request := domain.ProjectRequest{ID: in.ClientRequestID, ProjectID: in.ProjectID, Brief: in.Brief}
+		for _, a := range in.Attachments {
+			request.Attachments = append(request.Attachments, domain.RequestAttachment{Ext: a.Ext, Data: a.Data})
+		}
+		if request.ID == "" {
+			return DelegateTaskOutcome{}, apierr.Invalid("REQUEST_ID_REQUIRED", "A stable request ID is required for controller intake", nil)
+		}
+		if _, err := s.SubmitProjectRequest(ctx, request); err != nil {
+			return DelegateTaskOutcome{}, err
+		}
+		return DelegateTaskOutcome{RequestID: request.ID}, nil
+	}
+	if _, err := s.checkProjectClaim(ctx, in.ProjectID, in.Control); err != nil {
+		return DelegateTaskOutcome{}, err
+	}
 	if rec, found, err := s.replayClientRequest(ctx, in.ClientRequestID, in.ClientRequestHash); err != nil {
 		return DelegateTaskOutcome{}, err
 	} else if found {
@@ -96,6 +119,7 @@ func (s *Service) DelegateTask(ctx context.Context, in DelegateTaskInput) (Deleg
 
 	effort, effortOverride := optionalTuningValue(in.Effort)
 	worker, _, _, err := s.spawnWithTelemetry(ctx, ports.SpawnConfig{
+		Control:           in.Control,
 		ClientRequestID:   in.ClientRequestID,
 		ClientRequestHash: in.ClientRequestHash,
 		ProjectID:         in.ProjectID,

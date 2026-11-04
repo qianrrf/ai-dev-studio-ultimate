@@ -531,6 +531,7 @@ type SessionArchiveSummary struct {
 
 // SpawnSessionRequest is the body of POST /api/v1/sessions.
 type SpawnSessionRequest struct {
+	Control *domain.ControlClaim `json:"control,omitempty"`
 	// ReadOnly constrains the entire lifetime of a Codex Chat session.
 	ReadOnly        bool   `json:"readOnly,omitempty"`
 	ClientRequestID string `json:"clientRequestId,omitempty" maxLength:"128"`
@@ -1316,12 +1317,13 @@ type SendSessionMessageResponse struct {
 // DelegateTaskRequest is the body of POST /api/v1/orchestrators/delegate.
 // An omitted agent tells the orchestrator to use the project's worker default.
 type DelegateTaskRequest struct {
-	ClientRequestID string              `json:"clientRequestId,omitempty" maxLength:"128"`
-	ProjectID       domain.ProjectID    `json:"projectId"`
-	Brief           string              `json:"brief" maxLength:"16384"`
-	Branch          string              `json:"branch,omitempty" maxLength:"255"`
-	Agent           domain.AgentHarness `json:"agent,omitempty" enum:"claude-code,codex,aider,opencode,opencode-v2,grok,droid,amp,agy,crush,cursor,qwen,gemini,copilot,goose,auggie,continue,devin,cline,kimi,muse,kiro,kilocode,vibe,pi,kimchi,omp,fx,prime-agent,autohand,unreal-agent,codewhale,mimo-code,deepseek-harness,openhands,command-code,memcode,hermes,fake"`
-	Model           string              `json:"model,omitempty" maxLength:"256"`
+	Control         *domain.ControlClaim `json:"control,omitempty"`
+	ClientRequestID string               `json:"clientRequestId,omitempty" maxLength:"128"`
+	ProjectID       domain.ProjectID     `json:"projectId"`
+	Brief           string               `json:"brief" maxLength:"16384"`
+	Branch          string               `json:"branch,omitempty" maxLength:"255"`
+	Agent           domain.AgentHarness  `json:"agent,omitempty" enum:"claude-code,codex,aider,opencode,opencode-v2,grok,droid,amp,agy,crush,cursor,qwen,gemini,copilot,goose,auggie,continue,devin,cline,kimi,muse,kiro,kilocode,vibe,pi,kimchi,omp,fx,prime-agent,autohand,unreal-agent,codewhale,mimo-code,deepseek-harness,openhands,command-code,memcode,hermes,fake"`
+	Model           string               `json:"model,omitempty" maxLength:"256"`
 	// Effort is an explicit, provider-advertised model tuning override. Nil
 	// inherits the project default; an empty string selects the provider default.
 	Effort *string `json:"effort,omitempty" maxLength:"64"`
@@ -1350,8 +1352,9 @@ type PrepareTaskResponse struct {
 // DelegateTaskResponse confirms which worker was spawned and, when available,
 // which orchestrator received the follow-up title request.
 type DelegateTaskResponse struct {
+	RequestID      string           `json:"requestId,omitempty"`
 	OK             bool             `json:"ok"`
-	WorkerID       domain.SessionID `json:"workerId"`
+	WorkerID       domain.SessionID `json:"workerId,omitempty"`
 	OrchestratorID domain.SessionID `json:"orchestratorId,omitempty"`
 }
 

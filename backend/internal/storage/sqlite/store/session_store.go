@@ -86,14 +86,29 @@ func (s *Store) CreateAutomationSession(ctx context.Context, rec domain.SessionR
 }
 
 func (s *Store) createSessionLocked(ctx context.Context, rec domain.SessionRecord) (domain.SessionRecord, bool, error) {
+	var created domain.SessionRecord
+	var fresh bool
+	err := s.inTx(ctx, "create session", func(q *gen.Queries) error {
+		var err error
+		created, fresh, err = s.createSessionInTx(ctx, q, rec)
+		return err
+	})
+	return created, fresh, err
+}
+
+func (s *Store) createSessionInTx(ctx context.Context, q *gen.Queries, rec domain.SessionRecord) (domain.SessionRecord, bool, error) {
+	controlled, err := validateControlledSession(ctx, q, rec)
+	if err != nil {
+		return domain.SessionRecord{}, false, err
+	}
 	if rec.ClientRequestID != "" {
-		existing, found, err := s.getSessionByClientRequestID(ctx, s.qw, rec.ClientRequestID)
+		existing, found, err := s.getSessionByClientRequestID(ctx, q, rec.ClientRequestID)
 		if err != nil || found {
 			return existing, false, err
 		}
 	}
 	if rec.AutomationRunID != nil {
-		existing, err := s.qw.GetSessionByAutomationRunID(ctx, rec.AutomationRunID)
+		existing, err := q.GetSessionByAutomationRunID(ctx, rec.AutomationRunID)
 		if err == nil {
 			return rowToRecord(gen.GetSessionRow(existing)), false, nil
 		}
@@ -103,19 +118,21 @@ func (s *Store) createSessionLocked(ctx context.Context, rec domain.SessionRecor
 	}
 
 	var num int64
-	var err error
 	prefix := string(rec.ProjectID)
 	if rec.ProjectID == "" {
-		num, err = s.qw.NextStandaloneSessionNum(ctx)
+		num, err = q.NextStandaloneSessionNum(ctx)
 		prefix = standaloneSessionIDPrefix
 	} else {
-		num, err = s.qw.NextSessionNum(ctx, optionalProjectID(rec.ProjectID))
+		num, err = q.NextSessionNum(ctx, optionalProjectID(rec.ProjectID))
 	}
 	if err != nil {
 		return domain.SessionRecord{}, false, fmt.Errorf("next session num for %s: %w", rec.ProjectID, err)
 	}
 	// A deleted session's number is never handed out again.
-	floor, err := s.sessionNumFloor(ctx, prefix)
+	floor, err := q.GetSessionNumFloor(ctx, prefix)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
 	if err != nil {
 		return domain.SessionRecord{}, false, fmt.Errorf("session num floor for %s: %w", rec.ProjectID, err)
 	}
@@ -124,7 +141,7 @@ func (s *Store) createSessionLocked(ctx context.Context, rec domain.SessionRecor
 	}
 	for {
 		rec.ID = domain.SessionID(fmt.Sprintf("%s-%d", prefix, num))
-		exists, err := s.qw.SessionIDExists(ctx, rec.ID)
+		exists, err := q.SessionIDExists(ctx, rec.ID)
 		if err != nil {
 			return domain.SessionRecord{}, false, fmt.Errorf("check session id %s: %w", rec.ID, err)
 		}
@@ -133,20 +150,28 @@ func (s *Store) createSessionLocked(ctx context.Context, rec domain.SessionRecor
 		}
 		num++
 	}
-	if err := s.qw.InsertSession(ctx, recordToInsert(rec, num)); err != nil {
+	if err := q.InsertSession(ctx, recordToInsert(rec, num)); err != nil {
 		if rec.ClientRequestID != "" {
-			existing, found, reloadErr := s.getSessionByClientRequestID(ctx, s.qw, rec.ClientRequestID)
+			existing, found, reloadErr := s.getSessionByClientRequestID(ctx, q, rec.ClientRequestID)
 			if reloadErr == nil && found {
 				return existing, false, nil
 			}
 		}
 		if rec.AutomationRunID != nil {
-			existing, reloadErr := s.qw.GetSessionByAutomationRunID(ctx, rec.AutomationRunID)
+			existing, reloadErr := q.GetSessionByAutomationRunID(ctx, rec.AutomationRunID)
 			if reloadErr == nil {
 				return rowToRecord(gen.GetSessionRow(existing)), false, nil
 			}
 		}
 		return domain.SessionRecord{}, false, fmt.Errorf("insert session %s: %w", rec.ID, err)
+	}
+	if controlled && rec.Kind == domain.KindWorker && !rec.IsTaskPreparation {
+		if err := q.InsertProjectDispatch(ctx, gen.InsertProjectDispatchParams{
+			RequestID: rec.ClientRequestID, ProjectID: string(rec.ProjectID), OwnerID: rec.Control.OwnerID,
+			Revision: rec.Control.Revision, SessionID: string(rec.ID), CreatedAt: rec.CreatedAt,
+		}); err != nil {
+			return domain.SessionRecord{}, false, err
+		}
 	}
 	return rec, true, nil
 }
@@ -305,6 +330,12 @@ func (s *Store) SetSessionBranchState(ctx context.Context, id domain.SessionID, 
 func (s *Store) PromoteTaskPreparation(ctx context.Context, id domain.SessionID, rec domain.SessionRecord) (bool, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if _, managed, err := s.GetProjectControl(ctx, rec.ProjectID); err != nil || managed {
+		if err != nil {
+			return false, err
+		}
+		return false, domain.ErrProjectControlConflict
+	}
 	activity := normalActivity(rec.Activity, rec.UpdatedAt)
 	rows, err := s.qw.PromoteTaskPreparation(ctx, gen.PromoteTaskPreparationParams{
 		IssueID:            rec.IssueID,
@@ -955,16 +986,6 @@ ON CONFLICT (id_prefix) DO UPDATE SET max_num = MAX(max_num, excluded.max_num)`,
 		return false, fmt.Errorf("delete session %s: commit: %w", id, err)
 	}
 	return true, nil
-}
-
-// sessionNumFloor is the highest number a deleted session under prefix held.
-func (s *Store) sessionNumFloor(ctx context.Context, prefix string) (int64, error) {
-	var floor int64
-	err := s.writeDB.QueryRowContext(ctx, `SELECT max_num FROM session_num_floors WHERE id_prefix = ?`, prefix).Scan(&floor)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, nil
-	}
-	return floor, err
 }
 
 // GetSession returns the full record for a session, or ok=false if absent.

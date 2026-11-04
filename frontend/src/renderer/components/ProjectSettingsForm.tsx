@@ -22,6 +22,7 @@ import { buildIntake } from "./IntakeFields";
 import { ReviewerSelect, reviewerTrustWarning } from "./ReviewerSelect";
 import { ProjectSettingsEditor, type ProjectAgentPickerProps, type ProjectSettingsDraft } from "./ProjectSettingsEditor";
 import { CloudProjectSettingsAdapter } from "./CloudProjectSettingsForm";
+import { ProjectCodexControl } from "./ProjectCodexControl";
 
 type Project = components["schemas"]["Project"];
 type ProjectConfig = components["schemas"]["ProjectConfig"];
@@ -327,6 +328,7 @@ function SettingsBody({ project, projectId, hostId, hostConnected, onSaved, sect
 		modelScope={() => ""} defaultReviewer={(draft) => WORKER_DEFAULT_REVIEWERS[draft.workerAgent] ?? "claude-code"}
 		reviewerWarning={reviewerTrustWarning} save={save} saveUnchanged onSaveState={onSaveState}
 		modelHostId={hostId}
+		generalExtra={!hostId && !isScratchProject && project.kind !== "workspace" ? <ProjectCodexControl projectId={projectId} /> : undefined}
 		renderAgent={(props) => <LocalAgentPicker {...props} projectId={projectId} hostId={hostId} agentsQuery={agentsQuery} />} />;
 }
 

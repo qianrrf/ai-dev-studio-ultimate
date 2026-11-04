@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -936,6 +937,9 @@ const (
 )
 
 func (m *Manager) sendOnce(ctx context.Context, id domain.SessionID, prURL, key, sig, msg string, maxAttempts int, urgent bool) (sendOnceOutcome, error) {
+	if routed, err := m.routeControlledNudge(ctx, id, key, sig, msg); routed || err != nil {
+		return sendOnceAccounted, err
+	}
 	if m.guard == nil {
 		return sendOnceAccounted, nil
 	}
@@ -1001,6 +1005,44 @@ func (m *Manager) sendOnce(ctx context.Context, id domain.SessionID, prURL, key,
 		}
 	}
 	return sendOnceAccounted, nil
+}
+
+// Controlled projects retain observations as reports; only Codex decides whether
+// feedback warrants another worker turn. The report's stable ID deduplicates polls.
+func (m *Manager) routeControlledNudge(ctx context.Context, id domain.SessionID, key, sig, msg string) (bool, error) {
+	store, ok := m.store.(interface {
+		GetProjectControl(context.Context, domain.ProjectID) (domain.ProjectControl, bool, error)
+		CreateReport(context.Context, domain.ReportRecord) (domain.ReportRecord, error)
+		GetReport(context.Context, string) (domain.ReportRecord, bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	session, found, err := m.store.GetSession(ctx, id)
+	if err != nil || !found {
+		return false, err
+	}
+	_, managed, err := store.GetProjectControl(ctx, session.ProjectID)
+	if err != nil || !managed {
+		return managed, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s", id, key, sig)))
+	reportID := fmt.Sprintf("controller-notice-%x", digest)
+	if _, found, err := store.GetReport(ctx, reportID); err != nil || found {
+		return true, err
+	}
+	text := []rune("Controller decision required. Observation for " + string(id) + ": " + msg)
+	if len(text) > domain.MaxReportTextCharacters {
+		text = text[:domain.MaxReportTextCharacters]
+	}
+	now := m.clock().UTC()
+	_, err = store.CreateReport(ctx, domain.ReportRecord{ID: reportID, SessionID: id, ProjectID: session.ProjectID, State: domain.ReportNeedsInput, Note: string(text), CreatedAt: now, AvailableAt: now, RepeatCount: 1, DeliveryState: domain.ReportPending})
+	if err != nil {
+		if _, found, lookupErr := store.GetReport(ctx, reportID); lookupErr == nil && found {
+			return true, nil
+		}
+	}
+	return true, err
 }
 
 // loadPRSignaturesLocked merges any previously persisted reaction-dedup state

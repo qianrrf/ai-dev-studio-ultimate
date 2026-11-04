@@ -247,6 +247,19 @@ afterEach(() => {
 });
 
 describe("TaskComposer", () => {
+	it("confirms durable controller intake without opening a worker", async () => {
+		h.post.mockImplementation(async (path: string) => path === "/api/v1/orchestrators/delegate"
+			? { data: { ok: true, requestId: "requirement-1" } } : { data: {} });
+		const onCreated = vi.fn();
+		render(<Wrap><TaskComposer projectId="proj-1" onCreated={onCreated} /></Wrap>);
+		await waitForTaskReady();
+		fireEvent.change(task(), { target: { value: "Implement calculator" } });
+		fireEvent.click(startTask());
+		expect(await screen.findByRole("status")).toHaveTextContent("需求已保存，等待 Codex 主控安排。");
+		expect(onCreated).not.toHaveBeenCalled();
+		expect(h.post.mock.calls.filter(([path]) => path === "/api/v1/orchestrators/delegate")).toHaveLength(1);
+	});
+
 	it("requires a named branch and a second Start before retrying a checked out branch", async () => {
 		let delegates = 0;
 		h.post.mockImplementation(async (path: string) => {
