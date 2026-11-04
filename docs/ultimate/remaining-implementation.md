@@ -22,7 +22,7 @@ percentage is inferred from source changes.
 
 | Gate | Current observed evidence | Remaining acceptance |
 | --- | --- | --- |
-| M1 build | Original baseline worktree retained; Microsoft installer restarted with explicit VC tools and SDK selections; still downloading | Complete compiler installation, original installer and build log |
+| M1 build | Unmodified baseline Windows x64 package and unsigned NSIS installer generated; SHA-256 and build logs recorded | Complete Microsoft setup repair; original installer isolation/run check |
 | M2 control | SQLite CAS ownership/release, attachment-preserving intake, transactional dispatch, two-worker concurrency tests, HTTP/CLI and settings controls, automation intake and report routing | Fence existing-session continuations with delivery receipts; real handovers |
 | M3 loop | Persisted readOnly foundation; stable native filesystem probe passed | Immutable base/head review, actual test evidence, bounded rework and both controller loops |
 | M4 product | Constants and isolated product identity fixed in the accepted plan | Branding, data/port identities, disabled upstream services, candidate package |
