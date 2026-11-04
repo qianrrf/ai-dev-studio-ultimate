@@ -132,7 +132,7 @@ describe("ReadOnlyFileView", () => {
 	});
 
 	it("marks a revealed line, then clears the mark", async () => {
-		vi.useFakeTimers({ shouldAdvanceTime: true });
+		vi.useFakeTimers();
 		try {
 			render(
 				<ReadOnlyFileView
@@ -142,8 +142,11 @@ describe("ReadOnlyFileView", () => {
 					sessionId="sess-1"
 				/>,
 			);
-			await waitFor(() => expect(screen.getByTestId("pierre-file").dataset.selectedLines).toBe("120-120"));
-			act(() => vi.advanceTimersByTime(REVEALED_LINE_HIGHLIGHT_MS));
+			await act(async () => vi.advanceTimersToNextFrame());
+			expect(screen.getByTestId("pierre-file").dataset.selectedLines).toBe("120-120");
+			await act(async () => vi.advanceTimersByTimeAsync(REVEALED_LINE_HIGHLIGHT_MS - 1));
+			expect(screen.getByTestId("pierre-file").dataset.selectedLines).toBe("120-120");
+			await act(async () => vi.advanceTimersByTimeAsync(1));
 			expect(screen.getByTestId("pierre-file").dataset.selectedLines).toBeUndefined();
 		} finally {
 			vi.useRealTimers();
