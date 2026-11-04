@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -1630,7 +1631,7 @@ func (w *Workspace) addWorktree(ctx context.Context, repo, path, branch, baseBra
 			}
 			baseRef = refs.baseRef
 		}
-		if _, err := w.run(ctx, w.binary, worktreeAddBranchArgs(repo, path, branch, force)...); err != nil {
+		if err := w.runWorktreeAdd(ctx, path, worktreeAddBranchArgs(repo, path, branch, force)); err != nil {
 			return "", fmt.Errorf("gitworktree: worktree add existing branch %q: %w", branch, err)
 		}
 		return baseRef, nil
@@ -1818,7 +1819,7 @@ func (w *Workspace) isOrphanedWorktreeOf(ctx context.Context, repo, path string)
 // addWorktree for it takes the existing-branch path, and workspaceProjectBranch
 // simply picks the next free candidate.
 func (w *Workspace) addNewBranchWorktree(ctx context.Context, repo, branch, path, baseRef string, force bool) error {
-	_, err := w.run(ctx, w.binary, worktreeAddNewBranchArgs(repo, branch, path, baseRef, force)...)
+	err := w.runWorktreeAdd(ctx, path, worktreeAddNewBranchArgs(repo, branch, path, baseRef, force))
 	if err == nil {
 		return nil
 	}
@@ -1842,10 +1843,36 @@ func (w *Workspace) addNewBranchWorktree(ctx context.Context, repo, branch, path
 	if created {
 		retryArgs = worktreeAddBranchArgs(repo, path, branch, true)
 	}
-	if _, retryErr := w.run(ctx, w.binary, retryArgs...); retryErr != nil {
+	if retryErr := w.runWorktreeAdd(ctx, path, retryArgs); retryErr != nil {
 		return errors.Join(err, retryErr)
 	}
 	return nil
+}
+
+// Git for Windows passes the new .git path through GIT_DIR during checkout,
+// where Git rejects paths longer than PATH_MAX-40 even with core.longpaths.
+// Directory discovery avoids that explicit-environment limit. Match Git's own
+// checkout and post-checkout hook, only after add has registered this new tree.
+func (w *Workspace) runWorktreeAdd(ctx context.Context, path string, args []string) error {
+	longPath := runtime.GOOS == "windows" && len(path)+len("/.git") > 220
+	if longPath {
+		args = append(append(append([]string{}, args[:4]...), "--no-checkout"), args[4:]...)
+	}
+	if _, err := w.run(ctx, w.binary, args...); err != nil {
+		return err
+	}
+	if !longPath {
+		return nil
+	}
+	if _, err := w.run(ctx, w.binary, "-C", path, "reset", "--hard", "--no-recurse-submodules"); err != nil {
+		return err
+	}
+	head, err := w.revParse(ctx, path, "HEAD")
+	if err != nil {
+		return err
+	}
+	_, err = w.run(ctx, w.binary, "-C", path, "hook", "run", "--ignore-missing", "post-checkout", "--", strings.Repeat("0", len(head)), head, "1")
+	return err
 }
 
 type workspaceProjectRepo struct {

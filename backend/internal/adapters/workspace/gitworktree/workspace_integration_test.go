@@ -64,6 +64,58 @@ func TestWorkspaceIntegrationCreateRestoreDestroy(t *testing.T) {
 	}
 }
 
+func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
+	git := requireGit(t)
+	tmp := t.TempDir()
+	repo := setupOriginClone(t, git, filepath.Join(tmp, "source"))
+	// Git for Windows requires this repository setting independently of the OS policy.
+	runGit(t, git, repo, "config", "core.longpaths", "true")
+	hook := filepath.Join(repo, ".git", "hooks", "post-checkout")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > hook-args.txt\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(tmp, "中文 spaced workspace", strings.Repeat("segment-", 12), strings.Repeat("nested-", 12))
+	ws, err := New(Options{Binary: git, ManagedRoot: root, RepoResolver: StaticRepoResolver{"proj": repo}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	info, err := ws.Create(ctx, ports.WorkspaceConfig{ProjectID: "proj", SessionID: "long-path-worker", Branch: "feature/long-path"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := gitOutput(t, git, info.Path, "rev-parse", "HEAD")
+	hookArgs, err := os.ReadFile(filepath.Join(info.Path, "hook-args.txt"))
+	if err != nil || strings.ReplaceAll(string(hookArgs), "\r\n", "\n") != strings.Repeat("0", len(head))+"\n"+head+"\n1\n" {
+		t.Fatalf("post-checkout hook arguments = %q, error = %v", hookArgs, err)
+	}
+	if err := os.Remove(filepath.Join(info.Path, "hook-args.txt")); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(info.Path, "中文 source", strings.Repeat("deep-", 12), "result.txt")
+	if len(file) <= 260 {
+		t.Fatalf("fixture must exceed MAX_PATH: %d", len(file))
+	}
+	if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("long path evidence\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, git, info.Path, "add", ".")
+	runGit(t, git, info.Path, "-c", "user.name=Validation", "-c", "user.email=validation@example.invalid", "commit", "-m", "test: long path write")
+	if got := strings.TrimSpace(string(outputGit(t, git, info.Path, "show", "HEAD:"+filepath.ToSlash(strings.TrimPrefix(file, info.Path+string(filepath.Separator)))))); got != "long path evidence" {
+		t.Fatalf("committed content = %q", got)
+	}
+	if err := ws.Destroy(ctx, info); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(info.Path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("worktree remained after cleanup: %v", err)
+	}
+	t.Logf("Created, committed, read and removed a worktree with a %d-character file path", len(file))
+}
+
 func TestWorkspaceIntegrationExplicitNewBranchRejectsExistingName(t *testing.T) {
 	git := requireGit(t)
 	tmp := t.TempDir()
