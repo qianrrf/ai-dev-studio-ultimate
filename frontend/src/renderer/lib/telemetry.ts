@@ -1,4 +1,5 @@
 import { PRODUCT_TELEMETRY_ENABLED } from "../../shared/product";
+import { loadPostHog } from "./telemetry-sdk";
 import type posthogModule from "posthog-js/dist/module.full.no-external";
 import { aoBridge } from "./bridge";
 import { isLoopbackHostname } from "./loopback";
@@ -1191,11 +1192,6 @@ type PostHogInitOptions = NonNullable<Parameters<PostHogClient["init"]>[1]>;
 // it stays off the renderer's first-paint path. Every use below runs after
 // initTelemetry() resolved true, which is where this is assigned.
 let posthog!: PostHogClient;
-
-async function loadPostHog(): Promise<PostHogClient> {
-	if (!PRODUCT_TELEMETRY_ENABLED) throw new Error("Telemetry is unavailable in this local edition.");
-	return (await import("posthog-js/dist/module.full.no-external")).default;
-}
 
 export function buildPostHogConfig(distinctId: string): PostHogInitOptions {
 	return {

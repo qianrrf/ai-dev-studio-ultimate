@@ -26,7 +26,7 @@ export const trayCatalogs: Record<AppLocale, Record<TrayMessageKey, string> & Pa
 		"tray.attentionTooltip_other": "{{count}} sessions need attention",
 		"tray.empty": "No sessions need attention",
 		"tray.more": "More",
-		"tray.show": "Show Orchestrator",
+		"tray.show": "Show AI Dev Studio Ultimate",
 		"tray.quit": "Quit AO Completely",
 		"zone.merge": "Ready to merge",
 		"zone.action": "Needs you"
@@ -39,7 +39,7 @@ export const trayCatalogs: Record<AppLocale, Record<TrayMessageKey, string> & Pa
 		"tray.attentionTooltip_other": "{{count}} 个会话需要关注",
 		"tray.empty": "没有会话需要关注",
 		"tray.more": "更多",
-		"tray.show": "显示 Orchestrator",
+		"tray.show": "显示 AI Dev Studio Ultimate",
 		"tray.quit": "完全退出 AO",
 		"zone.merge": "可合并",
 		"zone.action": "需要你处理"

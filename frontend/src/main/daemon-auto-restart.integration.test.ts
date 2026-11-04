@@ -78,6 +78,7 @@ function setup() {
 		shouldReplaceDaemonForStartup, keepAliveForReplacement, gracefullyReplaceDaemonForBrowser: replace,
 		shouldLinkOnAttach: () => false, establishSupervisorLink, resolveDaemonFromPort: direct,
 		resolvedDaemonPort: () => 3001, readDaemonProbe: async () => null, daemonIdentityError: () => null,
+		browserProfileStateDir: () => "/test-ultimate-state",
 		runFilePath: () => "/owned/running.json", parseRunFile, readFile: read, rm: unlink,
 		portHolderPidToReplace, readProcessStartMs: async () => null, processAlive: () => false,
 		existsSync: () => true, ensureBundledTmuxStaged: stage, keepDaemonAlive,

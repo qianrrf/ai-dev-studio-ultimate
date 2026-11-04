@@ -194,6 +194,11 @@ func (m *codexAccountManager) deviceProviderAuthentication(ctx context.Context) 
 	if err != nil {
 		return failed
 	}
+	// Only a provider that does not require OpenAI login bypasses the missing
+	// device credential. An account observation cannot supply that credential.
+	if observation.Authentication == domain.AgentAuthenticationAuthorized {
+		observation.Authentication = domain.AgentAuthenticationUnauthorized
+	}
 	return accountAuthenticationObservation(at, observation.Authentication)
 }
 

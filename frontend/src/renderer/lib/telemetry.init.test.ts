@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // The actual local edition boundary is covered without these overrides.
 vi.mock("../../shared/product", () => ({ PRODUCT_TELEMETRY_ENABLED: true }));
 vi.mock("../../shared/posthog-config", () => ({ DEFAULT_POSTHOG_PROJECT_KEY: "test-key", DEFAULT_POSTHOG_HOST: "https://example.test" }));
+vi.mock("./telemetry-sdk", () => ({ loadPostHog: async () => (await import("posthog-js/dist/module.full.no-external")).default }));
 
 // initTelemetry memoizes its result in a module-scoped promise, so each test
 // resets the module registry and re-mocks the heavy boundaries (posthog, the

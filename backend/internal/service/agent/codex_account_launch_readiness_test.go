@@ -19,6 +19,7 @@ func TestLaunchWithoutDeviceCredentialUsesNativeProviderAuthRequirement(t *testi
 		want  domain.AgentAuthenticationState
 	}{
 		{"custom provider", domain.AgentAuthenticationNotApplicable, nil, domain.AgentAuthenticationNotApplicable},
+		{"missing device credential", domain.AgentAuthenticationAuthorized, nil, domain.AgentAuthenticationUnauthorized},
 		{"signed out", domain.AgentAuthenticationUnauthorized, nil, domain.AgentAuthenticationUnauthorized},
 		{"native read unavailable", "", errors.New("offline"), domain.AgentAuthenticationUnknown},
 	} {
