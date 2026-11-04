@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { closeSync, constants, fchmodSync, mkdirSync, openSync, readFileSync, writeFileSync, type PathLike } from "node:fs";
+import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync, type PathLike } from "node:fs";
 import path from "node:path";
 
 const KEY_FILE = "browser-runtime.key";
@@ -18,7 +18,25 @@ export type BrowserRuntimeKeyFs = {
 	writeFileSync: (target: number, data: string) => void;
 };
 
-const nodeKeyFs: BrowserRuntimeKeyFs = { closeSync, fchmodSync, mkdirSync, openSync, readFileSync, writeFileSync };
+// Windows has no O_NOFOLLOW. Reject existing redirects in our trusted local
+// state directory before reading or appending; this is not process isolation.
+function rejectWindowsKeySymlink(target: PathLike): void {
+	if (constants.O_NOFOLLOW === undefined && lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) {
+		throw new Error(`browser runtime key must not be a symbolic link: ${String(target)}`);
+	}
+}
+
+const nodeKeyFs: BrowserRuntimeKeyFs = {
+	closeSync, fchmodSync, mkdirSync, writeFileSync,
+	openSync(target, flags, mode) {
+		rejectWindowsKeySymlink(target);
+		return openSync(target, flags, mode);
+	},
+	readFileSync(target, encoding) {
+		rejectWindowsKeySymlink(target);
+		return readFileSync(target, encoding);
+	},
+};
 
 export function browserRuntimeKeyPath(dataDir: string): string {
 	return path.join(dataDir, KEY_FILE);

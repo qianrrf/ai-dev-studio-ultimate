@@ -1,4 +1,4 @@
-import { closeSync, constants, fchmodSync, fstatSync, mkdirSync, openSync, renameSync, rmSync, writeSync } from "node:fs";
+import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync, renameSync, rmSync, writeSync } from "node:fs";
 import path from "node:path";
 
 export const UPDATE_DIAGNOSTICS_FILE = "updater.jsonl";
@@ -47,6 +47,8 @@ export function createUpdateDiagnostics(stateDir: string, runningVersion: string
       // rather than allow either unbounded storage or a partial JSON line.
       if (Buffer.byteLength(line) > 64 * 1024) return;
       mkdirSync(directory, { recursive: true, mode: 0o700 });
+      // Node exposes no O_NOFOLLOW on Windows; refuse an existing redirect.
+      if (constants.O_NOFOLLOW === undefined && lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink()) return;
       const open = () => openSync(file, constants.O_CREAT | constants.O_APPEND | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
       fd = open();
       const stat = fstatSync(fd);

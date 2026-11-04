@@ -49,7 +49,7 @@ it("does not throw when the state directory cannot hold logs", () => {
   expect(() => createUpdateDiagnostics(stateDir, "1.0.0")("native-error", {}, new Error("failure"))).not.toThrow();
 });
 
-it.skipIf(process.platform === "win32")("does not follow a log symlink", () => {
+it("does not follow a log symlink", () => {
   const target = path.join(stateDir, "other-file");
   writeFileSync(target, "untouched");
   mkdirSync(path.dirname(logFile()));

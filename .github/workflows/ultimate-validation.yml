@@ -144,6 +144,19 @@ jobs:
         env:
           TZ: UTC
         run: npm --prefix frontend test -- --reporter=default --reporter=json --outputFile=frontend-results.json
+      - name: Prepare pinned browser runtime for native compatibility checks
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        run: npm run browser-runtime:prepare
+      - name: Native browser compatibility
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_binary="$PWD/agent-browser/agent-browser"
+          if [ "$RUNNER_OS" = Windows ]; then browser_binary="$browser_binary.exe"; fi
+          AO_AGENT_BROWSER_TEST_BINARY="$browser_binary" npm test -- src/main/agent-browser-runtime.test.ts
       - name: Check API types
         if: ${{ !cancelled() }}
         run: |

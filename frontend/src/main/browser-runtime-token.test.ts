@@ -240,7 +240,7 @@ describe("resolveBrowserRuntimeToken", () => {
 		expect(resolveBrowserRuntimeToken(dataDir)).toBe(token);
 	});
 
-	it.skipIf(process.platform === "win32")("does not append repairs through a corrupt symlink", () => {
+	it("does not append repairs through a corrupt symlink", () => {
 		const dataDir = tempDataDir();
 		mkdirSync(dataDir, { recursive: true });
 		const target = path.join(path.dirname(dataDir), "unrelated-file");
@@ -249,6 +249,19 @@ describe("resolveBrowserRuntimeToken", () => {
 
 		expect(() => resolveBrowserRuntimeToken(dataDir)).toThrow();
 		expect(readFileSync(target, "utf8")).toBe("unrelated contents\n");
+	});
+
+	it("does not adopt a valid key through a symlink", () => {
+		const otherDataDir = tempDataDir();
+		resolveBrowserRuntimeToken(otherDataDir);
+		const target = browserRuntimeKeyPath(otherDataDir);
+		const before = readFileSync(target, "utf8");
+		const dataDir = tempDataDir();
+		mkdirSync(dataDir, { recursive: true });
+		symlinkSync(target, browserRuntimeKeyPath(dataDir));
+
+		expect(() => resolveBrowserRuntimeToken(dataDir)).toThrow();
+		expect(readFileSync(target, "utf8")).toBe(before);
 	});
 
 	it("adopts the key a competing launch published first", () => {
