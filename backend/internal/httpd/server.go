@@ -38,28 +38,13 @@ type Server struct {
 // caller owns the returned Server's lifecycle via Run. termMgr may be nil, in
 // which case the /mux terminal surface is not mounted.
 //
-// If the configured port is already held, it falls back to an OS-assigned
-// ephemeral port rather than failing. A genuine peer AO daemon is ruled out
-// upstream (the running.json + /healthz check in daemon.Run), so a conflict here
-// means a non-AO process owns the port; exiting would only leave the desktop
-// supervisor stuck on "daemon not ready". The actual bound port is logged
-// ("daemon listening") and written to running.json, both of which the supervisor
-// reads, so the fallback propagates to the renderer with no UI changes.
+// An occupied configured port is an error. The product must not silently switch
+// endpoints or attach to a service owned by another installation.
 func NewWithDeps(cfg config.Config, log *slog.Logger, termMgr *terminal.Manager, deps APIDeps) (*Server, error) {
 	log = loggerOrDefault(log)
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
-		if !isAddrInUse(err) {
-			return nil, fmt.Errorf("bind %s: %w", cfg.Addr(), err)
-		}
-		// Configured port is taken by a non-AO process: retry on an ephemeral port.
-		fallback, ferr := net.Listen("tcp", net.JoinHostPort(cfg.Host, "0"))
-		if ferr != nil {
-			return nil, fmt.Errorf("bind %s (in use) and ephemeral fallback: %w", cfg.Addr(), ferr)
-		}
-		log.Warn("configured port in use; bound an ephemeral port instead",
-			"configured", cfg.Addr(), "bound", fallback.Addr().String())
-		ln = fallback
+		return nil, fmt.Errorf("bind %s: %w", cfg.Addr(), err)
 	}
 
 	srv := &Server{

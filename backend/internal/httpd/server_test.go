@@ -293,10 +293,7 @@ func waitForHealth(t *testing.T, base string) {
 	t.Fatal("server did not become healthy within timeout")
 }
 
-// TestNewFallsBackOnPortConflict confirms that when the configured port is
-// already held, the constructor binds an ephemeral port instead of failing, so
-// the desktop supervisor never gets stuck on "daemon not ready".
-func TestNewFallsBackOnPortConflict(t *testing.T) {
+func TestNewRejectsPortConflict(t *testing.T) {
 	cfg := config.Config{Host: "127.0.0.1", Port: 0, RunFilePath: filepath.Join(t.TempDir(), "r.json")}
 
 	first, err := NewWithDeps(cfg, discardLogger(), nil, APIDeps{})
@@ -305,20 +302,18 @@ func TestNewFallsBackOnPortConflict(t *testing.T) {
 	}
 	defer closeListeners(first)
 
-	// Request the exact port the first server took; the second server should
-	// fall back to a different, ephemeral port rather than error out.
+	// An occupied endpoint must fail before a new run-file can be published.
 	conflict := config.Config{Host: "127.0.0.1", Port: first.boundPort(), RunFilePath: cfg.RunFilePath}
 	second, err := NewWithDeps(conflict, discardLogger(), nil, APIDeps{})
-	if err != nil {
-		t.Fatalf("New on an already-bound port = %v, want ephemeral fallback", err)
+	if err == nil {
+		closeListeners(second)
+		t.Fatal("New on an already-bound port succeeded")
 	}
-	defer closeListeners(second)
-
-	if second.boundPort() == first.boundPort() {
-		t.Fatalf("second server bound the same port %d; want a fallback port", second.boundPort())
+	if !isAddrInUse(err) {
+		t.Fatalf("New on an already-bound port = %v, want address-in-use", err)
 	}
-	if second.boundPort() == 0 {
-		t.Fatal("second server bound port 0; want a real fallback port")
+	if _, err := os.Stat(cfg.RunFilePath); !os.IsNotExist(err) {
+		t.Fatalf("failed startup published a run-file: %v", err)
 	}
 }
 
