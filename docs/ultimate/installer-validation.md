@@ -1,5 +1,9 @@
 # Windows 候选安装包验收 — 2026-11-05
 
+This is the historical alpha 1 report. Current results and outstanding gates
+are in [alpha 2 acceptance](alpha2-acceptance.md). The old counts, model allowance
+and core-only smoke interpretation below do not describe alpha 2.
+
 结论：已生成、测试安装并卸载 `0.1.0-alpha.1` Windows x64 候选包。业务联调仍有人工辅助，完整测试与发布门槛未全部通过。本报告不会把安装成功等同于产品完整验收。
 
 ## 产物身份

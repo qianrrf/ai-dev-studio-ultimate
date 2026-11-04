@@ -36,6 +36,8 @@ website; no install is silently attempted by the product.
 - Regression fixture covers standard/current-user/registered roots, missing
   installations, Chinese/spaced paths, and existing PATH priority.
 
-These checks are not final installer or business acceptance. Alpha 2 still
-requires the complete matrix and a freshly built installer launched independently
-of the coding environment.
+Fresh alpha 2 builds now launch in the dedicated Chinese/spaced installation
+directory with a reduced inherited PATH. Persisted machine/user PATH independently
+resolves Git, Codex, DSH and GitHub CLI. Upgrade, durable backup/restore and uninstall
+preservation have also been exercised. Complete results and the unresolved
+long-root / CI / live-fault gates are in [alpha 2 acceptance](alpha2-acceptance.md).

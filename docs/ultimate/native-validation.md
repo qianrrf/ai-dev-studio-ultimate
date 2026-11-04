@@ -1,5 +1,9 @@
 # Native model validation, 2026-11-04
 
+This is historical alpha 1 evidence. The current allowance is 40 registered
+rounds and is exhausted. Updated controller/PR review evidence and unexercised
+recovery/cancellation gates are in [alpha 2 acceptance](alpha2-acceptance.md).
+
 The isolated lab used stable Codex 0.162.1 via the existing relay and DSH
 0.2.1-rc.5 account model `deepseek-account/deepseek-flash`. Exactly 20 rounds
 were pre-registered, including failed launches and preflight attempts. No further

@@ -51,7 +51,11 @@ async function until(fn, description, seconds=60) {
  };
  const repo=path.join(root,'中文 合成项目');
  fs.mkdirSync(repo,{recursive:true});
- const git=(...args)=>{const r=spawnSync('git',args,{cwd:repo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);return r.stdout.trim()};
+ const requirements=await api('GET','/system/requirements');
+ const gitExecutable=requirements.requirements.find(requirement=>requirement.id==='git'&&requirement.satisfied)?.detail;
+ assert.ok(gitExecutable&&fs.existsSync(gitExecutable),'Desktop daemon must resolve an executable Git');
+ result.gitExecutable=gitExecutable;
+ const git=(...args)=>{const r=spawnSync(gitExecutable,args,{cwd:repo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr);return r.stdout.trim()};
  if(!fs.existsSync(path.join(repo,'.git'))){git('init','-b','main');git('config','user.name','Installer validation');git('config','user.email','validation@example.invalid');
  fs.writeFileSync(path.join(repo,'README.md'),'Synthetic installer validation; no model calls.\n');git('add','README.md');git('commit','-m','test: synthetic installer project');}
  const cli=spawnSync(path.join(path.dirname(executable),'resources','daemon','ao.exe'),['project','add','--path',repo,'--id','package-validation','--name','安装验收','--orchestrator-agent','codex','--worker-agent','deepseek-harness'],{env,encoding:'utf8',windowsHide:true});
@@ -69,7 +73,7 @@ async function until(fn, description, seconds=60) {
  result.control=claimed;result.tests.push('bundled CLI registers Chinese/space Git path; CAS rejects stale revision; intake deduplicates without starting models');
  const longRepo=path.join(root,'long-path',...Array.from({length:5},(_,i)=>`segment-${i}-${'a'.repeat(32)}`),'项目');
  fs.mkdirSync(longRepo,{recursive:true});
- const longGit=(...args)=>{const r=spawnSync('git',['-c','core.longpaths=true',...args],{cwd:longRepo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
+ const longGit=(...args)=>{const r=spawnSync(gitExecutable,['-c','core.longpaths=true',...args],{cwd:longRepo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
  try {
   longGit('init','-b','main');longGit('config','core.longpaths','true');longGit('-c','user.name=Installer validation','-c','user.email=validation@example.invalid','commit','--allow-empty','-m','test: long path');
   await api('POST','/projects',{path:longRepo,projectId:'long-path-validation',name:'长路径验收'},201);

@@ -1,6 +1,6 @@
 # Local Windows alpha build
 
-The product identity is AI Dev Studio Ultimate, version `0.1.0-alpha.1`.
+The product identity is AI Dev Studio Ultimate, version `0.1.0-alpha.2`.
 The executable is `ai-dev-studio-ultimate.exe`, application ID is
 `dev.ai-dev-studio-ultimate.desktop`, and protocol is
 `ai-dev-studio-ultimate`. The daemon remains loopback-only and defaults to
@@ -47,9 +47,9 @@ focused tests passed. A shared telemetry test requires a Windows symlink
 privilege unavailable on this host; it fails before the behavior under test.
 Full-suite and installer results are recorded separately after execution.
 
-The real-model allowance is exhausted (20 registered rounds). See
-[native validation](native-validation.md) for operator-assisted internal and
-external development loops and remaining PR Reviewer / fault-injection gaps.
+The real-model allowance is exhausted (40 registered rounds). Current artifact,
+fixed versions, autonomous acceptance receipts, PR review and remaining
+fault-injection gaps are in [alpha 2 acceptance](alpha2-acceptance.md).
 A generated installer is a candidate, not evidence that every release gate
 has passed. Public releases, signing and automatic update publication are out
 of scope.

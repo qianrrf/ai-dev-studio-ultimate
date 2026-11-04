@@ -3,6 +3,9 @@
 This directory records the fork's audit, reproducible validation, and release
 gates. A documented capability is not a passing live test.
 
+Current alpha 2 candidate, observed results and outstanding acceptance gates:
+[alpha 2 acceptance](alpha2-acceptance.md). The alpha 1 reports below are historical.
+
 ## Source and scope
 
 - Upstream: https://github.com/OrchestratorInc/agent-orchestrator
