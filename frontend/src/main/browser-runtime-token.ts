@@ -18,10 +18,10 @@ export type BrowserRuntimeKeyFs = {
 	writeFileSync: (target: number, data: string) => void;
 };
 
-// Windows has no O_NOFOLLOW. Reject existing redirects in our trusted local
-// state directory before reading or appending; this is not process isolation.
-function rejectWindowsKeySymlink(target: PathLike): void {
-	if (constants.O_NOFOLLOW === undefined && lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) {
+// Reads follow links on every platform; Windows also has no O_NOFOLLOW for
+// appends. Reject existing redirects in this trusted local state directory.
+function rejectKeySymlink(target: PathLike): void {
+	if (lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) {
 		throw new Error(`browser runtime key must not be a symbolic link: ${String(target)}`);
 	}
 }
@@ -29,11 +29,11 @@ function rejectWindowsKeySymlink(target: PathLike): void {
 const nodeKeyFs: BrowserRuntimeKeyFs = {
 	closeSync, fchmodSync, mkdirSync, writeFileSync,
 	openSync(target, flags, mode) {
-		rejectWindowsKeySymlink(target);
+		rejectKeySymlink(target);
 		return openSync(target, flags, mode);
 	},
 	readFileSync(target, encoding) {
-		rejectWindowsKeySymlink(target);
+		rejectKeySymlink(target);
 		return readFileSync(target, encoding);
 	},
 };
