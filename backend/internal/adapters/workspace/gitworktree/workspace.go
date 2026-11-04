@@ -2533,6 +2533,11 @@ func movePathAside(path, suffix string) (string, error) {
 
 func runCommand(ctx context.Context, binary string, args ...string) ([]byte, error) {
 	cmd := aoprocess.CommandContext(ctx, binary, args...)
+	// Git parses -C before core.longpaths. Let Windows enter the directory first.
+	if runtime.GOOS == "windows" && len(args) >= 2 && args[0] == "-C" && len(args[1]) >= 248 {
+		cmd = aoprocess.CommandContext(ctx, binary, args[2:]...)
+		cmd.Dir = args[1]
+	}
 	cmd.Env = os.Environ()
 	if readsGitMessages(args) {
 		cmd.Env = untranslatedGitEnv(cmd.Env)

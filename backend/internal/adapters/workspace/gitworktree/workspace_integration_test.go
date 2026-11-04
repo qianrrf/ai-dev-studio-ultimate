@@ -84,7 +84,15 @@ func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head := gitOutput(t, git, info.Path, "rev-parse", "HEAD")
+	workspaceGit := func(args ...string) []byte {
+		t.Helper()
+		out, err := ws.run(ctx, git, append([]string{"-C", info.Path}, args...)...)
+		if err != nil {
+			t.Fatalf("workspace git %v: %v\n%s", args, err, out)
+		}
+		return out
+	}
+	head := strings.TrimSpace(string(workspaceGit("rev-parse", "HEAD")))
 	hookArgs, err := os.ReadFile(filepath.Join(info.Path, "hook-args.txt"))
 	if err != nil || strings.ReplaceAll(string(hookArgs), "\r\n", "\n") != strings.Repeat("0", len(head))+"\n"+head+"\n1\n" {
 		t.Fatalf("post-checkout hook arguments = %q, error = %v", hookArgs, err)
@@ -102,9 +110,9 @@ func TestWorkspaceIntegrationChineseLongPaths(t *testing.T) {
 	if err := os.WriteFile(file, []byte("long path evidence\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	runGit(t, git, info.Path, "add", ".")
-	runGit(t, git, info.Path, "-c", "user.name=Validation", "-c", "user.email=validation@example.invalid", "commit", "-m", "test: long path write")
-	if got := strings.TrimSpace(string(outputGit(t, git, info.Path, "show", "HEAD:"+filepath.ToSlash(strings.TrimPrefix(file, info.Path+string(filepath.Separator)))))); got != "long path evidence" {
+	workspaceGit("add", ".")
+	workspaceGit("-c", "user.name=Validation", "-c", "user.email=validation@example.invalid", "commit", "-m", "test: long path write")
+	if got := strings.TrimSpace(string(workspaceGit("show", "HEAD:"+filepath.ToSlash(strings.TrimPrefix(file, info.Path+string(filepath.Separator)))))); got != "long path evidence" {
 		t.Fatalf("committed content = %q", got)
 	}
 	if err := ws.Destroy(ctx, info); err != nil {
