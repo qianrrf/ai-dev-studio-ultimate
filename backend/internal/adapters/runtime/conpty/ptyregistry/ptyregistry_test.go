@@ -33,7 +33,7 @@ func setupHome(t *testing.T) string {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
-	return filepath.Join(dir, ".ao", "windows-pty-hosts.json")
+	return filepath.Join(dir, ".ai-dev-studio-ultimate", "windows-pty-hosts.json")
 }
 
 // withRunFilePath sets the instance-scoped registry override for the

@@ -202,7 +202,7 @@ func TestRequireAMD64(t *testing.T) {
 
 func TestWindowsInstalledExe(t *testing.T) {
 	got := windowsInstalledExe("C:\\Users\\me\\AppData\\Local")
-	want := filepath.Join("C:\\Users\\me\\AppData\\Local", "Programs", "Agent Orchestrator", "agent-orchestrator.exe")
+	want := filepath.Join("C:\\Users\\me\\AppData\\Local", "Programs", "AI Dev Studio Ultimate", "ai-dev-studio-ultimate.exe")
 	if got != want {
 		t.Fatalf("windowsInstalledExe = %q, want %q", got, want)
 	}
