@@ -28,14 +28,15 @@ intentionally excluded from Git. The process-only download hook uses the
 checksum-verified official Node 22.23.2 archive cached for the bundled ACP
 runtime; it does not substitute arbitrary downloads or bypass validation.
 
-## Toolchain installation limitation
+## Toolchain completion
 
-Microsoft setup is still incomplete (`vswhere isComplete=false`) because the
-optional CMake payload timed out after the compiler, SDK and MSBuild files
-were installed. The real compiler environment was sufficient for the observed
-package and installer builds. No completed Visual Studio installation or Go
-race-test pass is inferred from this result. Catalog/payload mismatches observed
-earlier remain failed checks; no mismatched payload was injected into setup.
+Microsoft setup completed at 21:52 with exit code 0. A fresh `vswhere` query
+confirmed `isComplete=true`, `isLaunchable=true`, and no reboot required.
+The earlier optional CMake download stalled but eventually completed through
+the native installer. Compiler installation and native packaging do not
+establish Go race support: a compatible GCC-style C compiler or CI is still
+required. Catalog/payload mismatches observed earlier remain failed checks;
+no mismatched payload was injected into setup.
 
 The upstream build still includes upstream services. Product identity, service
 disablement, install coexistence and business-loop verification are subsequent
