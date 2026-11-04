@@ -1,6 +1,7 @@
 # Controller delivery evidence
 
-This implementation checkpoint is not an installer or a completed M3 acceptance.
+This document describes the implementation checkpoint. The later installer and
+remaining acceptance gates are recorded in [installer validation](installer-validation.md).
 The daemon retains session lifecycle ownership. The new delivery table contains
 immutable operation requests and completion receipts, not another task state machine.
 

@@ -53,3 +53,8 @@ external development loops and remaining PR Reviewer / fault-injection gaps.
 A generated installer is a candidate, not evidence that every release gate
 has passed. Public releases, signing and automatic update publication are out
 of scope.
+
+The final local candidate, its exact source/hash, installed Electron smoke,
+coexistence and uninstall results are recorded in
+[installer validation](installer-validation.md). See the
+[Chinese quickstart](quickstart.zh-CN.md) for installation and controller handover.

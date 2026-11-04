@@ -1,3 +1,19 @@
+# AI Dev Studio Ultimate
+
+Windows x64 fork of Agent Orchestrator using Codex control, native DSH ACP
+workers, and independent Codex review. The `0.1.0-alpha.1` local installer is
+an unsigned candidate; unattended operation and all release gates are not yet
+accepted. No public release or automatic update feed is configured.
+
+[安装与使用](docs/ultimate/quickstart.zh-CN.md) ·
+[交付状态](docs/ultimate/delivery.zh-CN.md) ·
+[安装验收与 SHA-256](docs/ultimate/installer-validation.md) ·
+[源码审计](docs/ultimate/source-audit.md)
+
+The upstream README below is retained for attribution and architecture context.
+Its upstream download links and hosted features do not describe this alpha's
+installation or available services. Use the fork documentation above.
+
 <div align="center">
 
 <img src="docs/assets/readme/logo.png" alt="Orchestrator.inc logo" width="96" height="96" />
