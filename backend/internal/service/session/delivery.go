@@ -67,24 +67,27 @@ func (s *Service) DeliveryEvidence(ctx context.Context, workerID domain.SessionI
 		return nil, err
 	}
 	for i := range rows {
-		rows[i].Current = worker.Metadata.WorkspacePath == rows[i].WorkerPath && verifyDeliveryTree(ctx, rows[i].WorkerPath, rows[i].Request.HeadSHA) == nil
-		if rows[i].Current {
-			switch rows[i].Request.Kind {
-			case "review":
-				_, err = s.deliveryReview(ctx, store, rows[i].ID, "review")
-			case "verdict", "accept":
-				kind := "review"
-				if rows[i].Request.Kind == "accept" {
-					kind = "verdict"
-				}
-				_, err = s.deliveryReview(ctx, store, rows[i].Request.ReviewID, kind)
-			default:
-				err = nil
-			}
-			rows[i].Current = err == nil
-		}
+		rows[i].Current = s.deliveryCurrent(ctx, store, worker, rows[i])
 	}
 	return rows, nil
+}
+
+func (s *Service) deliveryCurrent(ctx context.Context, store deliveryStore, worker domain.SessionRecord, evidence domain.DeliveryEvidence) bool {
+	if worker.Metadata.WorkspacePath != evidence.WorkerPath || verifyDeliveryTree(ctx, evidence.WorkerPath, evidence.Request.HeadSHA) != nil {
+		return false
+	}
+	var err error
+	switch evidence.Request.Kind {
+	case "review":
+		_, err = s.deliveryReview(ctx, store, evidence.ID, "review")
+	case "verdict", "accept":
+		kind := "review"
+		if evidence.Request.Kind == "accept" {
+			kind = "verdict"
+		}
+		_, err = s.deliveryReview(ctx, store, evidence.Request.ReviewID, kind)
+	}
+	return err == nil
 }
 
 // RunDelivery registers first. Cancellation/restart after registration leaves an
@@ -154,6 +157,7 @@ func (s *Service) RunDelivery(ctx context.Context, workerID domain.SessionID, in
 		return evidence, toSpawnAPIError(err)
 	}
 	if !fresh {
+		evidence.Current = s.deliveryCurrent(ctx, store, worker, evidence)
 		return evidence, nil
 	}
 	result := domain.DeliveryResult{}
@@ -209,6 +213,7 @@ func (s *Service) RunDelivery(ctx context.Context, workerID domain.SessionID, in
 	if readErr != nil {
 		return evidence, readErr
 	}
+	evidence.Current = s.deliveryCurrent(persistCtx, store, worker, evidence)
 	return evidence, err
 }
 
@@ -250,7 +255,7 @@ func (s *Service) startDeliveryReview(ctx context.Context, store deliveryStore, 
 	if len(output) > 16384 {
 		output = output[:16384] + "\n[Preview truncated; full output is retained in delivery evidence.]"
 	}
-	prompt := fmt.Sprintf("Independently review the committed diff %s..%s for worker %s. This is a fresh read-only context. Inspect actual code and tests; do not edit files, use external tools, spawn agents, or request elevation. The first line of your final answer must be exactly APPROVED or CHANGES_REQUESTED, followed by concrete findings. Test evidence: command %q; exit code %d; result %s. Controller brief: %s", in.BaseSHA, in.HeadSHA, worker.ID, test.Request.Command, *test.Result.ExitCode, output, in.Message)
+	prompt := fmt.Sprintf("Independently review the committed diff %s..%s for worker %s. This is a fresh read-only context. Inspect actual code and tests within the assigned scope; report introduced defects or omissions in this worker's assignment, not unrelated unchanged base defects assigned to other workers. Do not edit files, use external tools, spawn agents, or request elevation. The first line of your final answer must be exactly APPROVED or CHANGES_REQUESTED, followed by concrete findings. Test evidence: command %q; exit code %d; result %s. Controller brief: %s", in.BaseSHA, in.HeadSHA, worker.ID, test.Request.Command, *test.Result.ExitCode, output, in.Message)
 	hash := sha256.Sum256([]byte(prompt))
 	reviewer, _, _, err := s.Spawn(ctx, ports.SpawnConfig{ProjectID: worker.ProjectID, Kind: domain.KindWorker, Harness: domain.HarnessCodex, ReadOnly: true, ReviewCommit: in.HeadSHA, RequestedMode: domain.SessionModeChat, RequireNewBranch: true, Control: &in.Control, ClientRequestID: "review:" + in.ID, ClientRequestHash: fmt.Sprintf("%x", hash), Prompt: prompt, AgentConfig: ports.AgentConfig{Model: tuning.Model, Effort: tuning.Effort, Permissions: domain.PermissionModeDefault}})
 	if err != nil {

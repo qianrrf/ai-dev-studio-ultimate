@@ -187,8 +187,12 @@ func TestDeliveryAcceptanceUsesIndependentCompletedVerdictAndInvalidatesReviewCh
 	}
 	accept.ID, accept.TestID = "accept", "test"
 	row, err = svc.RunDelivery(ctx, worker.ID, accept)
-	if err != nil || row.Result.Verdict != "accepted" {
+	if err != nil || row.Result.Verdict != "accepted" || !row.Current {
 		t.Fatalf("acceptance: %+v %v", row, err)
+	}
+	row, err = svc.RunDelivery(ctx, worker.ID, accept)
+	if err != nil || !row.Current {
+		t.Fatalf("replayed acceptance lost freshness: %+v %v", row, err)
 	}
 	if err := os.WriteFile(filepath.Join(reviewPath, "uncommitted.txt"), []byte("changed review"), 0600); err != nil {
 		t.Fatal(err)
