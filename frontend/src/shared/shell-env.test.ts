@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import {
 	buildDaemonEnv,
 	devDaemonAllowedOrigins,
@@ -13,6 +14,17 @@ import {
 } from "./shell-env";
 
 describe("parseEnvBlock", () => {
+	it.skipIf(process.platform !== "win32").each(["powershell", "cmd"] as const)("preserves Chinese environment paths through native %s", (kind) => {
+		const executable = kind === "cmd" ? process.env.ComSpec! : `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+		const probe = resolveWindowsShellProbe({ kind }, { ComSpec: executable }, () => executable)!;
+		const value = "C:\\安装 验收\\运行 数据";
+		const output = execFileSync(probe.shellPath, probe.args, {
+			encoding: probe.encoding ?? "utf8", windowsHide: true, timeout: 10_000,
+			env: { ...process.env, AIDSU_ENV_ENCODING_PROBE: value },
+		});
+		expect(parseEnvBlock(output).AIDSU_ENV_ENCODING_PROBE).toBe(value);
+	});
+
 	it("parses NUL-separated records after the sentinel", () => {
 		const stdout = `${SHELL_ENV_SENTINEL}PATH=/opt/homebrew/bin:/usr/bin\0HOME=/Users/me\0`;
 		expect(parseEnvBlock(stdout)).toEqual({
@@ -223,7 +235,8 @@ describe("resolveWindowsShellProbe", () => {
 		const comSpec = "C:\\Windows\\System32\\cmd.exe";
 		expect(resolveWindowsShellProbe({ kind: "cmd" }, { ComSpec: comSpec }, lookup({ [comSpec]: comSpec }))).toEqual({
 			shellPath: comSpec,
-			args: ["/d", "/s", "/c", expect.stringContaining(SHELL_ENV_SENTINEL)],
+			args: ["/d", "/u", "/s", "/c", expect.stringContaining(SHELL_ENV_SENTINEL)],
+			encoding: "utf16le",
 		});
 	});
 

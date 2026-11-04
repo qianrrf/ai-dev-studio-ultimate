@@ -34,6 +34,7 @@ export type WindowsExecutableLookup = (candidate: string) => string | null;
 export type ShellEnvProbe = {
 	shellPath: string;
 	args: string[];
+	encoding?: "utf8" | "utf16le";
 };
 
 function windowsDirname(value: string): string {
@@ -64,10 +65,10 @@ function windowsProbeArgs(shellPath: string): string[] {
 			return [
 				"-NoLogo",
 				"-Command",
-				`Write-Output '${SHELL_ENV_SENTINEL}'; Get-ChildItem Env: | ForEach-Object { "$($_.Name)=$($_.Value)" }`,
+				`[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Write-Output '${SHELL_ENV_SENTINEL}'; Get-ChildItem Env: | ForEach-Object { "$($_.Name)=$($_.Value)" }`,
 			];
 		case "cmd.exe":
-			return ["/d", "/s", "/c", `echo ${SHELL_ENV_SENTINEL} & set`];
+			return ["/d", "/u", "/s", "/c", `echo ${SHELL_ENV_SENTINEL} & set`];
 		default:
 			return ["--login", "-i", "-c", `printf '%s' '${SHELL_ENV_SENTINEL}'; env -0`];
 	}
@@ -123,7 +124,7 @@ export function resolveWindowsShellProbe(
 	}
 	for (const candidate of candidates) {
 		const shellPath = lookup(candidate);
-		if (shellPath) return { shellPath, args: windowsProbeArgs(shellPath) };
+		if (shellPath) return { shellPath, args: windowsProbeArgs(shellPath), ...(windowsBasename(shellPath) === "cmd.exe" ? { encoding: "utf16le" as const } : {}) };
 	}
 	return null;
 }
@@ -216,11 +217,11 @@ export function devDaemonAllowedOrigins(
 	return `app://renderer,${new URL(rendererURL).origin}`;
 }
 
-export type ShellRunner = (shellPath: string, args: string[]) => Promise<string | null>;
+export type ShellRunner = (shellPath: string, args: string[], encoding?: "utf8" | "utf16le") => Promise<string | null>;
 
 export async function resolveShellEnvWithSpec(spec: ShellEnvProbe, run: ShellRunner): Promise<Record<string, string> | null> {
 	try {
-		const stdout = await run(spec.shellPath, spec.args);
+		const stdout = await run(spec.shellPath, spec.args, spec.encoding);
 		if (stdout == null) return null;
 		const parsed = parseEnvBlock(stdout);
 		return parsed.PATH ? parsed : null;

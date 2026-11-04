@@ -1395,7 +1395,7 @@ function telemetryOverrides(): Record<string, string> {
 // reads input hits EOF instead of hanging; stderr is ignored to drop banner
 // noise. Never rejects: resolves null on spawn error, non-zero exit, or timeout
 // (SIGKILLed), so the caller degrades to the static PATH floor.
-const runLoginShell: ShellRunner = (shellPath, args) =>
+const runLoginShell: ShellRunner = (shellPath, args, encoding = "utf8") =>
 	new Promise((resolve) => {
 		let settled = false;
 		const finish = (value: string | null) => {
@@ -1416,8 +1416,9 @@ const runLoginShell: ShellRunner = (shellPath, args) =>
 		}, SHELL_ENV_TIMEOUT_MS);
 		let stdout = "";
 		// stdout may be typed Readable | null under this stdio config; guard it.
-		child.stdout?.on("data", (chunk: Buffer) => {
-			stdout += chunk.toString("utf8");
+		child.stdout?.setEncoding(encoding);
+		child.stdout?.on("data", (chunk: string) => {
+			stdout += chunk;
 		});
 		child.once("error", () => {
 			clearTimeout(timer);
