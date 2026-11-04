@@ -55,7 +55,7 @@ async function gitOutput(cwd: string, args: string[], options: ScanOptions = {})
 function comparablePath(value: string): string {
 	const resolved = path.resolve(value);
 	try {
-		const real = realpathSync(resolved);
+		const real = realpathSync.native(resolved);
 		return process.platform === "win32" ? real.toLowerCase() : real;
 	} catch {
 		return process.platform === "win32" ? resolved.toLowerCase() : resolved;

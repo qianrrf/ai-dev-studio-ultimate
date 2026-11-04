@@ -39,7 +39,7 @@ test("headless archive contains the daemon, Claude ACP runtime, and tmux in the 
 				assert.equal(statSync(join(extracted, "resources", file)).mode & 0o777, 0o755);
 			}
 		}
-		assert.equal(readlinkSync(join(extracted, "resources", "acp-runtime", "node_modules", ".bin", "claude-agent-acp")), "../@agentclientprotocol/claude-agent-acp/dist/index.js");
+		assert.equal(readlinkSync(join(extracted, "resources", "acp-runtime", "node_modules", ".bin", "claude-agent-acp")).replaceAll("\\", "/"), "../@agentclientprotocol/claude-agent-acp/dist/index.js");
 		rmSync(adapter);
 		assert.throws(() => buildHostBundle({ source: root, platform: "linux", arch: "x64" }), /Headless bundle requires/);
 	} finally {

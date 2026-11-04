@@ -1225,6 +1225,8 @@ describe("useBrowserView", () => {
 		);
 
 		bridge.setBounds.mockClear();
+		bridge.captureScreenshot.mockClear();
+		bridge.setOverlayOpen.mockClear();
 		const dialog = document.createElement("div");
 		dialog.setAttribute("role", "dialog");
 		dialog.setAttribute("data-state", "open");
@@ -1232,7 +1234,10 @@ describe("useBrowserView", () => {
 			document.body.appendChild(dialog);
 			await Promise.resolve();
 		});
-		expect(bridge.setBounds).not.toHaveBeenCalled();
+		// Scheduled visible layout updates may settle while the modal is mounted.
+		expect(bridge.setBounds).not.toHaveBeenCalledWith(expect.objectContaining({ visible: false }));
+		expect(bridge.captureScreenshot).not.toHaveBeenCalled();
+		expect(bridge.setOverlayOpen).not.toHaveBeenCalledWith(expect.objectContaining({ open: true }));
 
 		bridge.setBounds.mockClear();
 		await act(async () => {
