@@ -2725,11 +2725,15 @@ func TestPoll_PerObservationNonRateLimitError_MarksRefreshIncomplete(t *testing.
 func TestPoll_PerObservationError_NiledBeforePersistence(t *testing.T) {
 	store := testStoreWithSession()
 	local := knownPR(1)
+	local.MetadataHash = "previous-metadata"
 	store.prs["p-1"] = []domain.PullRequest{local}
 
+	updated := testObs(1)
+	updated.Error = errors.New("transient provider metadata")
 	provider := &fakeProvider{
 		repoGuards:   map[string]ports.SCMGuardResult{prKey(testRepo, 0): {ETag: "repo2"}},
-		observations: map[string]ports.SCMObservation{prKey(testRepo, 1): testObs(1)},
+		openPRs:      map[string][]ports.SCMPRObservation{prKey(testRepo, 0): {updated.PR}},
+		observations: map[string]ports.SCMObservation{prKey(testRepo, 1): updated},
 	}
 	lc := &fakeLifecycle{}
 	now := time.Unix(1000, 0).UTC()
@@ -2737,18 +2741,13 @@ func TestPoll_PerObservationError_NiledBeforePersistence(t *testing.T) {
 	if err := obs.Poll(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	// A healthy observation must reach lifecycle with Error == nil.
-	if len(lc.observed) == 0 {
-		t.Skip("no observation reached lifecycle; adjust test fixture")
+	if len(provider.fetchBatches) != 1 || len(lc.observed) != 1 || len(store.writes) == 0 {
+		t.Fatalf("expected fetch, persistence and lifecycle delivery; batches=%v lifecycle=%v writes=%v", provider.fetchBatches, lc.observed, store.writes)
 	}
 	for _, o := range lc.observed {
 		if o.Error != nil {
 			t.Errorf("lifecycle observed Error = %v, want nil (transient metadata must be nil-ed before persistence)", o.Error)
 		}
-	}
-	for _, w := range store.writes {
-		_ = w // store writes carry domain types, not the obs.Error field; the
-		// lifecycle assertion above is the authoritative nil-out check.
 	}
 }
 

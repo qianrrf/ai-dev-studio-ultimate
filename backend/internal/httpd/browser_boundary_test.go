@@ -353,7 +353,7 @@ func TestBrowserBoundaryElectron(t *testing.T) {
 		args = append([]string{"--no-sandbox", "--disable-gpu"}, args...)
 	}
 	cmd := exec.CommandContext(ctx, electronBinary, args...)
-	cmd.Env = append(os.Environ(), "AO_BOUNDARY_URL="+srv.URL, "AO_BOUNDARY_DATA="+t.TempDir(), "ELECTRON_RUN_AS_NODE=")
+	cmd.Env = append(electronEnvironment(), "AO_BOUNDARY_URL="+srv.URL, "AO_BOUNDARY_DATA="+t.TempDir())
 	output, err := cmd.CombinedOutput()
 	t.Logf("Electron: %s", output)
 	if err != nil || !strings.Contains(string(output), "AO_BOUNDARY_RESULT:0") {
@@ -362,6 +362,18 @@ func TestBrowserBoundaryElectron(t *testing.T) {
 	if shells.opened.Load() != 1 || source.attached.Load() != 1 {
 		t.Fatalf("unexpected browser effects: shells=%d attachments=%d", shells.opened.Load(), source.attached.Load())
 	}
+}
+
+// Electron treats even an empty ELECTRON_RUN_AS_NODE as enabled on Windows.
+func electronEnvironment() []string {
+	var env []string
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if !strings.EqualFold(key, "ELECTRON_RUN_AS_NODE") {
+			env = append(env, entry)
+		}
+	}
+	return env
 }
 
 func TestBrowserBoundaryPreviewCookieGrantsOnlyPreviewBytes(t *testing.T) {

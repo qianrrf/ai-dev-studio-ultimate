@@ -228,7 +228,7 @@ func TestMobileControlOriginElectron(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Env = append(os.Environ(), "AO_MOBILE_CONTROL_URL="+srv.URL, "AO_MOBILE_CONTROL_DATA="+t.TempDir(), "ELECTRON_RUN_AS_NODE=")
+	cmd.Env = append(electronEnvironment(), "AO_MOBILE_CONTROL_URL="+srv.URL, "AO_MOBILE_CONTROL_DATA="+t.TempDir())
 	out, err := cmd.CombinedOutput()
 	t.Logf("Electron: %s", out)
 	if err != nil || !strings.Contains(string(out), "AO_MOBILE_CONTROL_RESULT:0") {

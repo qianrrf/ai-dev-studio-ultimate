@@ -8,7 +8,7 @@ import { build } from "vite";
 const require = createRequire(import.meta.url);
 const electron = require("electron");
 const frontendRoot = path.resolve(import.meta.dirname, "..");
-const outputRoot = path.join(os.homedir(), ".ao", "dev", "browser-integration");
+const outputRoot = path.join(os.homedir(), ".ai-dev-studio-ultimate", "dev", "browser-integration");
 await mkdir(outputRoot, { recursive: true });
 const outputDirectory = await mkdtemp(path.join(outputRoot, "postcondition-"));
 const entry = path.join(frontendRoot, "src", "main", "browser-action-postconditions.integration.ts");
@@ -78,12 +78,16 @@ try {
 		...(process.platform === "linux" ? ["--no-sandbox", "--disable-gpu"] : []),
 		bundle,
 	];
+	const electronEnvironment = { ...process.env };
+	for (const key of Object.keys(electronEnvironment)) {
+		if (key.toUpperCase() === "ELECTRON_RUN_AS_NODE") delete electronEnvironment[key];
+	}
 	await new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: frontendRoot,
 			detached: process.platform !== "win32",
 			env: {
-				...process.env,
+				...electronEnvironment,
 				AO_BROWSER_POSTCONDITION_FIXTURE: fixture,
 				AO_BROWSER_POSTCONDITION_USER_DATA: userData,
 			},

@@ -191,7 +191,7 @@ func TestMuxOriginElectron(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Env = append(os.Environ(), "AO_MUX_URL="+srv.URL, "AO_MUX_DATA="+t.TempDir(), "ELECTRON_RUN_AS_NODE=")
+	cmd.Env = append(electronEnvironment(), "AO_MUX_URL="+srv.URL, "AO_MUX_DATA="+t.TempDir())
 	out, err := cmd.CombinedOutput()
 	t.Logf("Electron: %s", out)
 	if err != nil || !strings.Contains(string(out), "AO_MUX_RESULT:0") {
