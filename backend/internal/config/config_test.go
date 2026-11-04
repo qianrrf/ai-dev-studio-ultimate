@@ -41,18 +41,18 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UserHomeDir: %v", err)
 	}
-	wantRunFilePath := filepath.Join(homeDir, ".ao", "running.json")
+	wantRunFilePath := filepath.Join(homeDir, ".ai-dev-studio-ultimate", "running.json")
 	if cfg.RunFilePath != wantRunFilePath {
 		t.Errorf("RunFilePath = %q, want %q", cfg.RunFilePath, wantRunFilePath)
 	}
 	if cfg.DataDir == "" {
 		t.Error("DataDir is empty, want a resolved default path")
 	}
-	wantDataDir := filepath.Join(homeDir, ".ao", "data")
+	wantDataDir := filepath.Join(homeDir, ".ai-dev-studio-ultimate", "data")
 	if cfg.DataDir != wantDataDir {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, wantDataDir)
 	}
-	if wantStateDir := filepath.Join(homeDir, ".ao"); cfg.StateDir != wantStateDir {
+	if wantStateDir := filepath.Join(homeDir, ".ai-dev-studio-ultimate"); cfg.StateDir != wantStateDir {
 		t.Errorf("StateDir = %q, want %q", cfg.StateDir, wantStateDir)
 	}
 	if cfg.Telemetry.Remote != TelemetryRemoteOff || cfg.Telemetry.PostHogHost != DefaultTelemetryPostHogHost {
@@ -133,13 +133,13 @@ func TestLoadOverrides(t *testing.T) {
 	if cfg.StateDir != dataDir {
 		t.Errorf("StateDir = %q, want explicit DataDir %q", cfg.StateDir, dataDir)
 	}
-	if !cfg.Telemetry.Events || cfg.Telemetry.Metrics {
+	if cfg.Telemetry.Events || cfg.Telemetry.Metrics {
 		t.Fatalf("Telemetry toggles = %+v", cfg.Telemetry)
 	}
 	if !cfg.Telemetry.EventsExplicit {
 		t.Fatal("Telemetry.EventsExplicit = false for AO_TELEMETRY_EVENTS=on")
 	}
-	if cfg.Telemetry.Remote != TelemetryRemotePostHog || cfg.Telemetry.PostHogKey != "phc_test" || cfg.Telemetry.PostHogHost != "https://eu.i.posthog.com" {
+	if cfg.Telemetry.Remote != TelemetryRemoteOff || cfg.Telemetry.PostHogKey != "" || cfg.Telemetry.PostHogHost != "https://eu.i.posthog.com" {
 		t.Fatalf("Telemetry remote = %+v", cfg.Telemetry)
 	}
 }
@@ -282,13 +282,13 @@ func TestLoadOfferingDefaults(t *testing.T) {
 	if cfg.Client != "" {
 		t.Errorf("Client = %q, want empty", cfg.Client)
 	}
-	if !cfg.CloudOffering {
-		t.Error("CloudOffering = false, want true by default")
+	if cfg.CloudOffering {
+		t.Error("CloudOffering must remain disabled in the local edition")
 	}
 	if !cfg.LocalOffering {
 		t.Error("LocalOffering = false, want true by default")
 	}
-	if cfg.CloudControlPlaneURL != "https://api.aoagents.dev" {
+	if cfg.CloudControlPlaneURL != "" {
 		t.Errorf("CloudControlPlaneURL = %q, want the baked default", cfg.CloudControlPlaneURL)
 	}
 }
@@ -312,7 +312,7 @@ func TestLoadOfferingOverrides(t *testing.T) {
 	if cfg.LocalOffering {
 		t.Error("LocalOffering = true, want explicit false to stick")
 	}
-	if cfg.CloudControlPlaneURL != "https://cp.example.com" {
+	if cfg.CloudControlPlaneURL != "" {
 		t.Errorf("CloudControlPlaneURL = %q, want trimmed https://cp.example.com", cfg.CloudControlPlaneURL)
 	}
 }
@@ -715,7 +715,7 @@ func TestScrubTelemetryEnvKeepsLoadedConfigAndClearsProcessEnv(t *testing.T) {
 	}
 	ScrubTelemetryEnv()
 
-	if cfg.Telemetry.Remote != TelemetryRemotePostHog || cfg.Telemetry.AppVersion != "0.13.7" || cfg.Telemetry.PostHogKey != "phc_test" || cfg.Telemetry.SentryDSN == "" {
+	if cfg.Telemetry.Remote != TelemetryRemoteOff || cfg.Telemetry.AppVersion != "0.13.7" || cfg.Telemetry.PostHogKey != "" || cfg.Telemetry.SentryDSN != "" {
 		t.Fatalf("loaded config lost telemetry settings: %+v", cfg.Telemetry)
 	}
 	for _, key := range telemetryEnvKeys {

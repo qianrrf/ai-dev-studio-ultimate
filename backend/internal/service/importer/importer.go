@@ -678,8 +678,13 @@ func unsafeImportPath(path string) bool {
 			return true
 		}
 	}
-	aoState := comparableImportPath(filepath.Join(home, ".ao"))
-	return sameImportPath(clean, aoState) || isImportDescendant(clean, aoState)
+	for _, stateDir := range []string{".ao", ".ai-dev-studio-ultimate"} {
+		state := comparableImportPath(filepath.Join(home, stateDir))
+		if sameImportPath(clean, state) || isImportDescendant(clean, state) {
+			return true
+		}
+	}
+	return false
 }
 
 func isImportDescendant(path, parent string) bool {

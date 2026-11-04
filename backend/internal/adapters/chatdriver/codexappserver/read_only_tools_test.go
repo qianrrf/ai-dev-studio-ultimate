@@ -22,6 +22,9 @@ func TestReadOnlySandboxOverrideUsesNativeProcessArguments(t *testing.T) {
 			continue
 		}
 		want := []string{"app-server"}
+		if value == "" && runtime.GOOS == "windows" {
+			want = []string{"-c", "windows.sandbox=unelevated", "app-server"}
+		}
 		if value != "" {
 			want = []string{"-c", "windows.sandbox=" + value, "app-server"}
 		}

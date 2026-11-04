@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -5868,7 +5869,7 @@ func isDefaultDevDataDir(dataDir string) bool {
 	if err != nil {
 		return false
 	}
-	want, err := filepath.Abs(filepath.Join(home, ".ao", "dev", "data"))
+	want, err := filepath.Abs(filepath.Join(home, product.StateDirectory, "dev", "data"))
 	if err != nil {
 		return false
 	}

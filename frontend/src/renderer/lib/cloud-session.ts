@@ -23,7 +23,8 @@ const DEFAULT_WORKOS_CLIENT_ID = "client_01KZ3VRKC374HS91XGRDPT3671";
 export function isCloudSignInConfigured(
   clientId = import.meta.env.VITE_WORKOS_CLIENT_ID ?? DEFAULT_WORKOS_CLIENT_ID,
 ): boolean {
-  return Boolean(clientId?.trim());
+  void clientId;
+  return false;
 }
 
 // The session the app last resolved. A component that mounts later starts from

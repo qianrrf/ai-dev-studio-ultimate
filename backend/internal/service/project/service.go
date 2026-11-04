@@ -474,9 +474,11 @@ func validateRepositorySetupPathSafety(path string) error {
 		}
 	}
 
-	aoState := comparablePath(filepath.Join(home, ".ao"))
-	if samePath(clean, aoState) || isDescendantPath(clean, aoState) {
-		return unsafeRepositorySetupPathError(path, "AO state directory")
+	for _, stateDir := range []string{".ao", ".ai-dev-studio-ultimate"} {
+		state := comparablePath(filepath.Join(home, stateDir))
+		if samePath(clean, state) || isDescendantPath(clean, state) {
+			return unsafeRepositorySetupPathError(path, "application state directory")
+		}
 	}
 	return nil
 }

@@ -14,13 +14,13 @@ var unsafePipeChars = regexp.MustCompile(`[^a-zA-Z0-9\-]`)
 
 func pipeNameFromRunFile(runFilePath string) string {
 	if runFilePath == "" {
-		return `\\.\pipe\ao-browser`
+		return `\\.\pipe\ai-dev-studio-ultimate-browser`
 	}
 	dir := filepath.Base(filepath.Dir(runFilePath))
-	if dir == ".ao" || dir == "." || dir == "" {
-		return `\\.\pipe\ao-browser`
+	if dir == ".ai-dev-studio-ultimate" || dir == "." || dir == "" {
+		return `\\.\pipe\ai-dev-studio-ultimate-browser`
 	}
-	return `\\.\pipe\ao-browser-` + unsafePipeChars.ReplaceAllString(dir, "-")
+	return `\\.\pipe\ai-dev-studio-ultimate-browser-` + unsafePipeChars.ReplaceAllString(dir, "-")
 }
 
 // Listen creates the local daemon-to-Electron browser bridge listener.

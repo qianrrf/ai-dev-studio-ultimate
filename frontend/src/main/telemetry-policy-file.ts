@@ -45,7 +45,7 @@ export function resolveDesktopDataDir(
 ): string {
 	const configured = env.AO_DATA_DIR?.trim();
 	if (configured) return path.resolve(launchWorkingDirectory, configured);
-	return path.resolve(homeDir, ".ao", isPackaged ? "data" : path.join("dev", "data"));
+	return path.resolve(homeDir, ".ai-dev-studio-ultimate", isPackaged ? "data" : path.join("dev", "data"));
 }
 
 export class TelemetryPolicyAuthority {

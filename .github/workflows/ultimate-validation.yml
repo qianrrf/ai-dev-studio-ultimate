@@ -55,6 +55,8 @@ jobs:
         working-directory: frontend
       - run: npm ci
         working-directory: packages/product-ui
+      - run: npm ci
+        working-directory: packages/cloud-client
       - name: Types, complete frontend suite and API types
         env:
           TZ: UTC

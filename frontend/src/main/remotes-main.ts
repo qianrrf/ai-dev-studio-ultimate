@@ -10,7 +10,7 @@ import { addRemote, readRemotes, updateRemote, type RemoteChanges, type RemoteEn
 // An isolated desktop run must not read or write the real user's credentials.
 // Without an override, keep the existing ~/.ao location.
 export function remotesFilePath(): string {
-	return path.join(process.env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ao"), "remotes.json");
+	return path.join(process.env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ai-dev-studio-ultimate"), "remotes.json");
 }
 
 type RunFile = (file: string, args: string[], options: { timeout: number }) => Promise<{ stdout: string }>;

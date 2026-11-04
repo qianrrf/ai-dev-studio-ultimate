@@ -1245,6 +1245,8 @@ func TestManager_InitializeRepositoryRecovery(t *testing.T) {
 			filepath.Join(home, "Downloads"),
 			filepath.Join(home, ".ao"),
 			filepath.Join(home, ".ao", "data"),
+			filepath.Join(home, ".ai-dev-studio-ultimate"),
+			filepath.Join(home, ".ai-dev-studio-ultimate", "data"),
 		}
 		for _, path := range paths {
 			if err := os.MkdirAll(path, 0o755); err != nil {

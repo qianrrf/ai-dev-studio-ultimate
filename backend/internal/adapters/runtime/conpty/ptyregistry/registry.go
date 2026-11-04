@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"os"
 	"path/filepath"
 	"sync"
@@ -82,7 +83,7 @@ func registryFile() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".ao", "windows-pty-hosts.json"), nil
+	return filepath.Join(home, product.StateDirectory, "windows-pty-hosts.json"), nil
 }
 
 // readRaw reads and strictly parses the registry. A missing file is a complete

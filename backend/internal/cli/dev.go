@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io"
 	"os"
 	"path/filepath"
@@ -147,7 +148,7 @@ func defaultNormalDataDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve home dir: %w", err)
 	}
-	return filepath.Join(home, ".ao", "data"), nil
+	return filepath.Join(home, product.StateDirectory, "data"), nil
 }
 
 func expandHomePath(path string) (string, error) {

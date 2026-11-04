@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"io"
 	"log/slog"
 	"os"
@@ -87,7 +88,7 @@ func DefaultSourceRoots(ctx context.Context, dataDir string) (SourceRoots, error
 		claudeHome = filepath.Join(home, ".claude")
 	}
 	if strings.TrimSpace(dataDir) == "" {
-		dataDir = filepath.Join(home, ".ao", "data")
+		dataDir = filepath.Join(home, product.StateDirectory, "data")
 	}
 	return SourceRoots{
 		ClaudeProjects: filepath.Join(claudeHome, "projects"),

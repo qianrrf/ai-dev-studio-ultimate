@@ -883,6 +883,9 @@ func appServerArgs(env []string) ([]string, error) {
 			return nil, fmt.Errorf("unsupported AO_CODEX_WINDOWS_SANDBOX %q", value)
 		}
 	}
+	if runtime.GOOS == "windows" {
+		return []string{"-c", "windows.sandbox=unelevated", "app-server"}, nil
+	}
 	return []string{"app-server"}, nil
 }
 

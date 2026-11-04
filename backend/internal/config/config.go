@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/aoagents/agent-orchestrator/backend/internal/product"
 	"net"
 	"net/url"
 	"os"
@@ -31,7 +32,7 @@ const (
 	// an IsLoopback() validator — not a raw env read.
 	LoopbackHost = "127.0.0.1"
 	// DefaultPort is the single port for REST, terminal mux, health, and control.
-	DefaultPort = 3001
+	DefaultPort = product.DaemonPort
 	// DefaultRequestTimeout bounds a single REST request. Long-lived terminal mux
 	// connections are mounted outside this timeout.
 	DefaultRequestTimeout = 60 * time.Second
@@ -51,7 +52,7 @@ const (
 	// DefaultAgent is the compatibility value used when AO_AGENT is unset. The
 	// daemon validates it at startup, but worker/orchestrator spawns resolve from
 	// explicit requests or project role config instead of falling back to it.
-	DefaultAgent = "claude-code"
+	DefaultAgent = "codex"
 	// DefaultTelemetryPostHogHost is the default PostHog ingestion host when
 	// remote telemetry is enabled and AO_TELEMETRY_POSTHOG_HOST is unset.
 	DefaultTelemetryPostHogHost = "https://us.i.posthog.com"
@@ -554,6 +555,10 @@ func Load() (Config, error) {
 		cfg.StateDir = filepath.Dir(dataDir)
 	}
 
+	// The alpha is local-only even when inherited AO environment enables hosted services.
+	cfg.CloudOffering, cfg.CloudControlPlaneURL = false, ""
+	cfg.Telemetry.Events, cfg.Telemetry.Metrics = false, false
+	cfg.Telemetry.Remote, cfg.Telemetry.PostHogKey, cfg.Telemetry.SentryDSN = TelemetryRemoteOff, "", ""
 	return cfg, nil
 }
 
@@ -744,7 +749,7 @@ func defaultStateDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve state dir: %w", err)
 	}
-	return filepath.Join(homeDir, ".ao"), nil
+	return filepath.Join(homeDir, product.StateDirectory), nil
 }
 
 // absOverride resolves an explicit AO_DATA_DIR/AO_RUN_FILE override to an

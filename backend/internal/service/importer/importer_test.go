@@ -184,6 +184,7 @@ func TestValidateProjectImportRejectsFilePath(t *testing.T) {
 func TestValidateProjectImportRejectsAOStatePath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	statePath := filepath.Join(home, ".ao", "data")
 	if err := os.MkdirAll(statePath, 0o750); err != nil {
 		t.Fatal(err)
@@ -198,6 +199,11 @@ func TestValidateProjectImportRejectsAOStatePath(t *testing.T) {
 		t.Fatalf("result = %#v, want unsafe-path error", result)
 	}
 	wantActions(t, result.BlockingErrors, []string{"IMPORT_PATH_UNSAFE"})
+	for _, stateDir := range []string{".ao", ".ai-dev-studio-ultimate"} {
+		if !unsafeImportPath(filepath.Join(home, stateDir, "data")) {
+			t.Fatalf("must protect %s state", stateDir)
+		}
+	}
 }
 
 func TestValidateProjectImportUnbornRepositoryNeedsCommitAndRemote(t *testing.T) {

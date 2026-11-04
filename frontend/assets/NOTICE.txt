@@ -1,0 +1,10 @@
+AI Dev Studio Ultimate
+Fork of https://github.com/OrchestratorInc/agent-orchestrator
+
+Original Agent Orchestrator / Orchestrator.inc authors retain their copyrights.
+The original source is distributed under Apache License 2.0 (see LICENSE).
+This fork adds Codex project control, delivery evidence, and a local Windows identity.
+It is not an official Orchestrator.inc release.
+
+Third-party software retains its own licenses. See THIRD_PARTY_LICENSES.txt,
+the Electron distribution's licenses, and resource-specific license files.

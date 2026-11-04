@@ -18,7 +18,7 @@ export function DaemonStartupLoader() {
 	return (
 		<div
 			aria-busy="true"
-			aria-label={t("startup.aria", { brand: "Orchestrator" })}
+			aria-label={t("startup.aria", { brand: "AI Dev Studio Ultimate" })}
 			ref={screenRef}
 			className="ao-startup-screen flex h-full w-full items-center justify-center bg-background text-foreground"
 			data-testid="daemon-startup-loader"

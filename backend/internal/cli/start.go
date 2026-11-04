@@ -28,11 +28,11 @@ import (
 // AgentWrapper URLs still resolve only through GitHub's rename redirect, which
 // is not a contract: the same staleness that stranded the baked update feed
 // (#3523) would strand every `ao start` download the day that redirect stops.
-var releaseRepo = "Untrivial-ai/agent-orchestrator"
+var releaseRepo = "qianrrf/ai-dev-studio-ultimate"
 
 // appBundleName is the macOS bundle directory name produced by electron-forge
 // (spaced, per frontend/forge.config.ts).
-const appBundleName = "Agent Orchestrator.app"
+const appBundleName = "AI Dev Studio Ultimate.app"
 
 // appStateFileName is the marker the desktop app writes under ~/.ao on every
 // launch (spec §5). `ao start` is a read-only consumer of it.
@@ -91,15 +91,8 @@ func (c *commandContext) runStart(ctx context.Context, cmd *cobra.Command, opts 
 	appPath := c.resolveApp()
 	res.Resolved = appPath != ""
 
-	var err error
 	if appPath == "" {
-		// Progress for the fetch path goes to stderr so stdout stays pure JSON
-		// under --json. The resolve-and-launch fast path above stays quiet.
-		appPath, err = c.fetchApp(ctx, cmd.ErrOrStderr())
-		if err != nil {
-			return err
-		}
-		res.Fetched = true
+		return fmt.Errorf("install and launch AI Dev Studio Ultimate before using its bundled CLI; automatic downloads are disabled for this alpha")
 	}
 	res.AppPath = appPath
 
@@ -221,7 +214,7 @@ func knownAppLocations() []string {
 		}
 		// Per-machine fallback (if a user chose an all-users install).
 		if pf := os.Getenv("ProgramFiles"); pf != "" {
-			paths = append(paths, filepath.Join(pf, "Agent Orchestrator", "agent-orchestrator.exe"))
+			paths = append(paths, filepath.Join(pf, "AI Dev Studio Ultimate", "ai-dev-studio-ultimate.exe"))
 		}
 		return paths
 	case "linux":
@@ -238,7 +231,7 @@ func knownAppLocations() []string {
 // windowsInstalledExe is the default per-user electron-builder NSIS install
 // target for the app exe under %LOCALAPPDATA%.
 func windowsInstalledExe(localAppData string) string {
-	return filepath.Join(localAppData, "Programs", "Agent Orchestrator", "agent-orchestrator.exe")
+	return filepath.Join(localAppData, "Programs", "AI Dev Studio Ultimate", "ai-dev-studio-ultimate.exe")
 }
 
 // linuxAppImagePath is the stable location `ao start` downloads the AppImage to

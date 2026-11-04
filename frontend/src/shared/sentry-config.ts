@@ -5,10 +5,10 @@
 // in packages/mobile because the Expo bundle cannot reach frontend/src.
 // These client DSNs are write-only ingest endpoints, not secrets.
 export const DEFAULT_DAEMON_SENTRY_DSN =
-	"https://e21b875a3f97a58fa0cf4f6754285267@o4511955966361600.ingest.us.sentry.io/4512334276329472";
+	"";
 
 export const DEFAULT_ELECTRON_SENTRY_DSN =
-	"https://5fe434b5838d57447e2a4b5b4e8b551a@o4511955966361600.ingest.us.sentry.io/4512334283931648";
+	"";
 
 export const ELECTRON_SENTRY_ERROR_SAMPLE_RATE = 0.25;
 

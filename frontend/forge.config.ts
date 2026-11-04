@@ -23,19 +23,19 @@ import { checkMacDmgLayout } from "./scripts/build-mac-dmg.mjs";
 // workflows set AO_RELEASE_REPO to the repo they run in, and build-artifacts.yml
 // asserts the baked app-update.yml matches it, so a future org/repo rename
 // fails the build instead of stranding the fleet on a redirect (#3523).
-const DEFAULT_RELEASE_REPO = "Untrivial-ai/agent-orchestrator";
+
 
 // The packaged binary name (no extension). Single source of truth: the packager
 // names the exe/ELF from this, and the NSIS + deb makers must point their
 // shortcut/launcher at the SAME name. Drift here means a broken Start menu
 // shortcut on Windows (#2414) or "could not find the Electron app binary" on deb.
-const EXECUTABLE_NAME = "agent-orchestrator";
-export const WINDOWS_DISPLAY_NAME = "Orchestrator.inc";
+const EXECUTABLE_NAME = "ai-dev-studio-ultimate";
+export const WINDOWS_DISPLAY_NAME = "AI Dev Studio Ultimate";
 const AUTH_PROTOCOL = {
-	name: "Orchestrator authentication callback",
-	schemes: ["ao-app"],
+	name: "AI Dev Studio Ultimate",
+	schemes: ["ai-dev-studio-ultimate"],
 };
-const AUTH_PROTOCOL_MIME_TYPE = "x-scheme-handler/ao-app";
+const AUTH_PROTOCOL_MIME_TYPE = "x-scheme-handler/ai-dev-studio-ultimate";
 const PACKAGED_EXTERNAL_DEPENDENCIES = [
 	"/node_modules/better-sqlite3",
 	"/node_modules/bindings",
@@ -68,7 +68,7 @@ async function prepareNativeDependencies(platform: NodeJS.Platform, arch: string
 // Packager app name. It sets the bundle filename ("<name>.app"), which the
 // installed path, updater, and `ao start` keep using, so it is not the label
 // people see in Finder.
-const PACKAGER_NAME = "Agent Orchestrator";
+const PACKAGER_NAME = "AI Dev Studio Ultimate";
 
 // Finder uses the localized label only when the base display name matches the
 // bundle filename, but the packager defaults it to the executable name. Set it,
@@ -103,7 +103,7 @@ export function extraResourcesForPlatform(platform: NodeJS.Platform): string[] {
 		"browser-extension",
 		"agent-browser",
 		"resources/acp-runtime",
-		...(platform === "darwin" ? ["update-helper", "wake-helper", "dictation-helper", "cloudflared", "assets/mac/en.lproj"] : []),
+		...(platform === "darwin" ? ["update-helper", "wake-helper", "dictation-helper", "assets/mac/en.lproj"] : []),
 		...(platform === "darwin" || platform === "linux" ? ["tmux"] : []),
 		"assets/icon.png",
 		"assets/icon.ico",
@@ -112,7 +112,9 @@ export function extraResourcesForPlatform(platform: NodeJS.Platform): string[] {
 		"assets/trayAwakeIconTemplate.png",
 		"assets/trayAwakeIconTemplate@2x.png",
 		"assets/trayAwakeIcon.LICENSE",
-		"app-update.yml",
+        "../LICENSE",
+        "assets/NOTICE.txt",
+        "assets/THIRD_PARTY_LICENSES.txt",
 	];
 }
 
@@ -157,14 +159,6 @@ export function macSignOptionsForFile(filePath: string): { entitlements?: string
 // parseReleaseRepo turns an "owner/repo" string (from AO_RELEASE_REPO) into the
 // publisher-github { owner, name } shape, falling back to the production default
 // when unset or malformed.
-function parseReleaseRepo(value: string | undefined): { owner: string; name: string } {
-	const [owner, name] = (value || DEFAULT_RELEASE_REPO).split("/");
-	if (!owner || !name) {
-		const [defOwner, defName] = DEFAULT_RELEASE_REPO.split("/");
-		return { owner: defOwner, name: defName };
-	}
-	return { owner, name };
-}
 
 const config: ForgeConfig = {
 	packagerConfig: {
@@ -174,7 +168,7 @@ const config: ForgeConfig = {
 		// runtime dependency tree explicitly; AutoUnpackNativesPlugin then places
 		// the .node binary outside app.asar.
 		ignore: ignoreFromVitePackage,
-		appBundleId: "dev.agent-orchestrator.desktop",
+		appBundleId: "dev.ai-dev-studio-ultimate.desktop",
 		name: PACKAGER_NAME,
 		executableName: EXECUTABLE_NAME,
 		// Match the Windows installer without changing the executable name.
@@ -247,15 +241,6 @@ const config: ForgeConfig = {
 				if (dictationBuild.error) throw dictationBuild.error;
 				if (dictationBuild.status !== 0) throw new Error("macOS dictation helper build failed");
 			}
-			const { owner, name } = parseReleaseRepo(process.env.AO_RELEASE_REPO);
-			const yml = [
-				"provider: github",
-				`owner: ${owner}`,
-				`repo: ${name}`,
-				"updaterCacheDirName: agent-orchestrator-updater",
-				"",
-			].join("\n");
-			writeFileSync("app-update.yml", yml);
 		},
 		packageAfterPrune: async (_forgeConfig, buildPath) => {
 			const nativeModule = path.join(
@@ -367,7 +352,7 @@ const config: ForgeConfig = {
 		// custom install dir or proper uninstaller (issue #401).
 		new MakerNSIS(
 			{
-				appId: "dev.agent-orchestrator.desktop",
+				appId: "dev.ai-dev-studio-ultimate.desktop",
 				// The name shown in the installer, the updater, the shortcuts, and
 				// Windows Apps. It matches the app's display name in main.ts.
 				productName: WINDOWS_DISPLAY_NAME,
@@ -377,7 +362,7 @@ const config: ForgeConfig = {
 				icon: "assets/icon.ico",
 				// Keep the installer filename unchanged. electron-builder names it
 				// after productName by default.
-				nsis: { artifactName: "Agent Orchestrator Setup ${version}.${ext}" },
+				nsis: { artifactName: "AI Dev Studio Ultimate Setup ${version}.${ext}", runAfterFinish: false },
 			},
 			["win32"],
 		),
@@ -391,7 +376,7 @@ const config: ForgeConfig = {
 		// break the signature seal on the way in (see makers/maker-dmg.ts, #3267).
 		new MakerDMG(
 			{
-				appId: "dev.agent-orchestrator.desktop",
+				appId: "dev.ai-dev-studio-ultimate.desktop",
 				productName: "Agent Orchestrator",
 			},
 			["darwin"],
@@ -402,7 +387,7 @@ const config: ForgeConfig = {
 		// prefer a system package.
 		new MakerAppImage(
 			{
-				appId: "dev.agent-orchestrator.desktop",
+				appId: "dev.ai-dev-studio-ultimate.desktop",
 				productName: "Orchestrator",
 				appImage: { artifactName: "Agent Orchestrator-${version}.${ext}" },
 				icon: "assets/icon.png",
@@ -438,29 +423,7 @@ const config: ForgeConfig = {
 			},
 		},
 	],
-	publishers: [
-		{
-			name: "@electron-forge/publisher-github",
-			// Release target is build-time overridable so a fork run publishes to the
-			// fork without a source edit. AO_RELEASE_REPO is "owner/repo"; it defaults
-			// to the production target. The dev/test loop sets
-			// AO_RELEASE_REPO=harshitsinghbhandari/agent-orchestrator (spec §1.1, §8).
-			// Note: aoagents/agent-orchestrator and AgentWrapper/agent-orchestrator
-			// are prior homes and intentionally NOT the default; releases land on
-			// Untrivial-ai.
-			config: {
-				repository: parseReleaseRepo(process.env.AO_RELEASE_REPO),
-				prerelease: process.env.AO_RELEASE_PRERELEASE === "true",
-				draft: false,
-				// Ask GitHub to compose the body from the PRs merged since the last
-				// release. Without it the publisher creates the release with an empty
-				// body, and the app's new "what's new" section has nothing to show:
-				// electron-updater reads release notes from the release body, so an
-				// empty body means users get told nothing about what changed.
-				generateReleaseNotes: true,
-			},
-		},
-	],
+	publishers: [],
 	plugins: [
 		new AutoUnpackNativesPlugin({}),
 		new VitePlugin({

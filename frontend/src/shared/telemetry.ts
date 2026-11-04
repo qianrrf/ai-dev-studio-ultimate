@@ -112,7 +112,7 @@ export function defaultDataDir(
 	void platform;
 	if (env.AO_DATA_DIR) return env.AO_DATA_DIR;
 	if (!homeDir) return null;
-	return path.join(homeDir, ".ao", "data");
+	return path.join(homeDir, ".ai-dev-studio-ultimate", "data");
 }
 
 export const EXPERIMENT_COHORT_BUCKETS = 100;

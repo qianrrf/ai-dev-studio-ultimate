@@ -107,7 +107,7 @@ const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 /** The folder every cloud session's copied artifacts live under: under ~/.ao, never an OS app-data location. */
 function cloudArtifactsRoot(env: NodeJS.ProcessEnv): string {
-	return path.join(env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ao"), "cloud-artifacts");
+	return path.join(env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ai-dev-studio-ultimate"), "cloud-artifacts");
 }
 
 /** Where a cloud session's artifacts are copied to open them in a folder: under ~/.ao, never an OS app-data location. */

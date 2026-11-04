@@ -109,3 +109,5 @@ pnpm-lock.yaml
 
 /frontend/wake-helper/
 /frontend/dictation-helper/
+
+/frontend/assets/THIRD_PARTY_LICENSES.txt

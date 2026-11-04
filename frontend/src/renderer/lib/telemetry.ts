@@ -1,3 +1,4 @@
+import { PRODUCT_TELEMETRY_ENABLED } from "../../shared/product";
 import type posthogModule from "posthog-js/dist/module.full.no-external";
 import { aoBridge } from "./bridge";
 import { isLoopbackHostname } from "./loopback";
@@ -1192,7 +1193,7 @@ type PostHogInitOptions = NonNullable<Parameters<PostHogClient["init"]>[1]>;
 let posthog!: PostHogClient;
 
 async function loadPostHog(): Promise<PostHogClient> {
-	return (await import("posthog-js/dist/module.full.no-external")).default;
+	throw new Error("Telemetry is unavailable in this local edition.");
 }
 
 export function buildPostHogConfig(distinctId: string): PostHogInitOptions {
@@ -1242,6 +1243,7 @@ export function buildPostHogConfig(distinctId: string): PostHogInitOptions {
 }
 
 export async function initTelemetry(): Promise<boolean> {
+	if (!PRODUCT_TELEMETRY_ENABLED) return false;
 	if (initPromise) return initPromise;
 	const attempt = (async () => {
 		if (!POSTHOG_KEY) return false;

@@ -42,13 +42,13 @@ import {
 	setMacDifferentialUpdates,
 	returnToHome,
 	type UpdateCheckOptions,
-} from "./main/auto-updater";
-import { listFeatureBuilds, getActiveFeatureBuild } from "./main/feature-builds";
-import { clearMainSentryCache, initMainSentry, sanitizeRendererCapture } from "./main/sentry-main";
+} from "./main/local-only-updates";
+import { listFeatureBuilds, getActiveFeatureBuild } from "./main/local-only-updates";
+import { clearMainSentryCache, initMainSentry, sanitizeRendererCapture } from "./main/local-only-telemetry";
 import { TelemetryPolicyAuthority, resolveDesktopDataDir } from "./main/telemetry-policy-file";
 import { DesktopTelemetryController } from "./main/desktop-telemetry-controller";
 import { TelemetryIdentityController } from "./main/telemetry-identity";
-import { readUpdateSettings, type UpdateSettings, type UpdateStatus } from "./main/update-settings";
+import { type UpdateSettings, type UpdateStatus } from "./main/update-settings";
 import { readKeybindingOverrides, writeKeybindingOverrides } from "./main/keybinding-settings";
 import { readEditorSettings, writeEditorPreference } from "./main/editor-settings";
 import { createEditorHandoff } from "./main/editor-handoff";
@@ -151,14 +151,13 @@ import {
 	registerCloudProtocol,
 	resolveCloudAuthDir,
 	showCloudSignInFailure,
-} from "./main/cloud-auth";
-import { installCloudLocalAuthIPC } from "./main/cloud-auth-local";
-import { createCloudAgentProxy } from "./main/cloud-agent-proxy";
-import { installCloudCpProxy } from "./main/cloud-cp-proxy";
+} from "./main/local-only-cloud";
+import { installCloudLocalAuthIPC } from "./main/local-only-cloud";
+import { createCloudAgentProxy } from "./main/local-only-cloud";
+import { installCloudCpProxy } from "./main/local-only-cloud";
 import { createControlPlaneUrlResolver } from "./main/cloud-control-plane-url";
 import { DEFAULT_POSTHOG_HOST, DEFAULT_POSTHOG_PROJECT_KEY } from "./shared/posthog-config";
-import { daemonSentryDsn } from "./shared/sentry-config";
-import { buildTelemetryBootstrap, loadOrAssignExperimentCohort, readTelemetryInstallContext, rendererTelemetryEnabled } from "./shared/telemetry";
+import { buildTelemetryBootstrap, loadOrAssignExperimentCohort, readTelemetryInstallContext } from "./shared/telemetry";
 import { detectInstallSource } from "./shared/install-environment";
 import {
 	TELEMETRY_CLEAR_RENDERER_QUEUES_CHANNEL,
@@ -250,7 +249,7 @@ process.stderr.on("error", ignoreStdStreamError);
 
 // The name shown in window titles, the menu bar, the dock, and the About panel.
 // Packaged bundle and installer filenames are unchanged.
-const APP_DISPLAY_NAME = "Orchestrator.inc";
+const APP_DISPLAY_NAME = "AI Dev Studio Ultimate";
 
 // Must run before app ready so the About panel and default-menu role labels use it.
 // Unpackaged runs get a distinct name so the dev window, dock menu, and About
@@ -268,7 +267,7 @@ if (!app.isPackaged && process.platform === "darwin") {
 // Notification.isSupported() still returns true but show() silently drops the
 // toast, so notifications never appear. No-op on macOS/Linux.
 if (process.platform === "win32") {
-	app.setAppUserModelId("dev.agent-orchestrator.desktop");
+	app.setAppUserModelId("dev.ai-dev-studio-ultimate.desktop");
 }
 
 // Escape hatch for hosts whose GPU driver stack crashes Chromium on startup
@@ -301,9 +300,9 @@ if (disableGpu === "1" || disableGpu === "true" || disableGpu === "yes" || disab
 // are deliberately NOT overridable — their profile is part of the install.
 app.setPath(
 	"userData",
-	app.isPackaged
-		? path.join(os.homedir(), ".ao", "electron")
-		: (process.env.AO_DEV_ELECTRON_DIR ?? path.join(os.homedir(), ".ao", "dev", "electron")),
+	process.env.AO_DATA_DIR?.trim() ? path.resolve(process.env.AO_DATA_DIR, "electron") : app.isPackaged
+		? path.join(os.homedir(), ".ai-dev-studio-ultimate", "electron")
+		: (process.env.AO_DEV_ELECTRON_DIR ?? path.join(os.homedir(), ".ai-dev-studio-ultimate", "dev", "electron")),
 );
 
 // Resolve once against the launch cwd, before the daemon can chdir. The exact
@@ -495,7 +494,7 @@ const isDev = !app.isPackaged;
 // a concurrently running installed-app daemon. The subdir also isolates supervise.sock
 // on Unix (backend derives it as dir(RunFilePath)/supervise.sock) and the named pipe
 // on Windows (supervisorPipeFromRunFile derives it from the same dir basename).
-const DEV_DAEMON_PORT = 3002;
+const DEV_DAEMON_PORT = 31340;
 const DEV_STATE_SUBDIR = "dev"; // ~/.ao/dev/
 
 const RENDERER_SCHEME = "app";
@@ -536,8 +535,8 @@ function syncNativeWindowBackground(): void {
 function resolvedDaemonDataDir(): string {
 	const override = process.env.AO_DATA_DIR?.trim();
 	if (override) return override;
-	if (isDev) return path.join(os.homedir(), ".ao", DEV_STATE_SUBDIR, "data");
-	return path.join(os.homedir(), ".ao", "data");
+	if (isDev) return path.join(os.homedir(), ".ai-dev-studio-ultimate", DEV_STATE_SUBDIR, "data");
+	return path.join(os.homedir(), ".ai-dev-studio-ultimate", "data");
 }
 
 // Cursor Agent reads TERM_THEME at process start. The daemon applies it from
@@ -576,7 +575,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // Only the app's single instance claims (or, for a loopback dev build,
-// releases) the ao-app:// deep-link protocol used by WorkOS auth callbacks and
+// releases) the ai-dev-studio-ultimate:// deep-link protocol used by WorkOS auth callbacks and
 // billing returns: a second launch that is about to exit must not change it.
 // See registerCloudProtocol. Must run before app.whenReady().
 if (!app.requestSingleInstanceLock()) {
@@ -799,7 +798,7 @@ async function disposeBrowserViewHost(): Promise<void> {
 
 function browserProfileStateDir(): string {
 	const runFile = runFilePath();
-	return path.dirname(runFile ?? path.join(os.homedir(), ".ao", "running.json"));
+	return path.dirname(runFile ?? path.join(os.homedir(), ".ai-dev-studio-ultimate", "running.json"));
 }
 
 async function clearElectronBrowserProfileData(partition: string): Promise<void> {
@@ -823,7 +822,7 @@ async function createWindowInternal(): Promise<void> {
 		// Agent Browser creates Unix sockets below each run root. Keep this base
 		// deliberately short so the namespace/session suffix stays below macOS's
 		// 103-byte sockaddr_un limit; all AO state remains under ~/.ao.
-		dataDir: path.join(os.homedir(), ".ao", ...(app.isPackaged ? ["br"] : ["dev", "br"])),
+		dataDir: path.join(os.homedir(), ".ai-dev-studio-ultimate", ...(app.isPackaged ? ["br"] : ["dev", "br"])),
 		log: (message) => console.log(`AO: ${message}`),
 	});
 	await agentBrowserRuntime.prepare();
@@ -1253,7 +1252,7 @@ const DAEMON_PROBE_TIMEOUT_MS = 2_000;
 
 function runFilePath(): string | null {
 	if (process.env.AO_RUN_FILE) return process.env.AO_RUN_FILE;
-	if (isDev) return path.join(os.homedir(), ".ao", DEV_STATE_SUBDIR, "running.json");
+	if (isDev) return path.join(os.homedir(), ".ai-dev-studio-ultimate", DEV_STATE_SUBDIR, "running.json");
 	return defaultRunFilePath(process.platform, process.env, os.homedir());
 }
 
@@ -1369,15 +1368,18 @@ const configuredLoginShell = process.platform === "darwin" ? (os.userInfo().shel
 // exercise the export path from a dev build.
 function telemetryOverrides(): Record<string, string> {
 	return {
-		AO_TELEMETRY_EVENTS: process.env.AO_TELEMETRY_EVENTS ?? "on",
-		AO_TELEMETRY_REMOTE: process.env.AO_TELEMETRY_REMOTE ?? (isDev ? "off" : "posthog"),
+		AO_TELEMETRY_EVENTS: "off",
+        AO_TELEMETRY_METRICS: "off",
+        AO_CODEX_WINDOWS_SANDBOX: "unelevated",
+        AO_CLOUD_OFFERING: "off",
+		AO_TELEMETRY_REMOTE: "off",
 		AO_TELEMETRY_POSTHOG_KEY: process.env.AO_TELEMETRY_POSTHOG_KEY ?? DEFAULT_POSTHOG_PROJECT_KEY,
 		AO_TELEMETRY_POSTHOG_HOST: process.env.AO_TELEMETRY_POSTHOG_HOST ?? DEFAULT_POSTHOG_HOST,
 		// Daemon-side Sentry (5xx + panics with Go stacks). Stamped on the daemon
 		// env so the spawned daemon inherits the DSN; off in dev to match the
 		// PostHog remote gate, and an explicit env always wins. A blank value
 		// leaves the daemon's Sentry a no-op.
-		AO_SENTRY_DSN: daemonSentryDsn(process.env.AO_SENTRY_DSN, isDev),
+		AO_SENTRY_DSN: "",
 		// The daemon binary has no version of its own that release tooling sets,
 		// so without this every daemon event lands unattributable to a release.
 		AO_TELEMETRY_APP_VERSION: process.env.AO_TELEMETRY_APP_VERSION ?? app.getVersion(),
@@ -1510,7 +1512,7 @@ async function ensureBundledTmuxStaged(): Promise<void> {
 	const source = bundledTmuxBinaryPath(app.isPackaged, process.resourcesPath, process.platform);
 	const destination = stableBundledTmuxBinaryPath(
 		app.isPackaged,
-		process.env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ao"),
+		process.env.AO_DATA_DIR?.trim() || path.join(os.homedir(), ".ai-dev-studio-ultimate"),
 		app.getVersion(),
 		process.platform,
 		process.arch,
@@ -1587,7 +1589,7 @@ function daemonEnv(forceKeep = keepDaemonAlive(process.env)): NodeJS.ProcessEnv 
 	if (isDev) {
 		if (!process.env.AO_PORT) devExtras.AO_PORT = String(DEV_DAEMON_PORT);
 		if (!process.env.AO_RUN_FILE) devExtras.AO_RUN_FILE = runFilePath() ?? "";
-		if (!process.env.AO_DATA_DIR) devExtras.AO_DATA_DIR = path.join(os.homedir(), ".ao", DEV_STATE_SUBDIR, "data");
+		if (!process.env.AO_DATA_DIR) devExtras.AO_DATA_DIR = path.join(os.homedir(), ".ai-dev-studio-ultimate", DEV_STATE_SUBDIR, "data");
 		devExtras.AO_ALLOWED_ORIGINS = devDaemonAllowedOrigins(
 			process.env.AO_ALLOWED_ORIGINS,
 			rendererUrl(),
@@ -1667,10 +1669,10 @@ function daemonIdentityError(launch: DaemonLaunchSpec, probe: DaemonProbe): stri
  * app quit.
  */
 function supervisorPipeFromRunFile(rfp: string | null): string {
-	if (!rfp) return "\\\\.\\pipe\\ao-supervise";
+	if (!rfp) return "\\\\.\\pipe\\ai-dev-studio-ultimate-supervise";
 	const dir = path.basename(path.dirname(rfp));
-	if (dir === ".ao" || dir === "." || dir === "") return "\\\\.\\pipe\\ao-supervise";
-	return "\\\\.\\pipe\\ao-supervise-" + dir.replace(/[^a-zA-Z0-9-]/g, "-");
+	if (dir === ".ai-dev-studio-ultimate" || dir === "." || dir === "") return "\\\\.\\pipe\\ai-dev-studio-ultimate-supervise";
+	return "\\\\.\\pipe\\ai-dev-studio-ultimate-supervise-" + dir.replace(/[^a-zA-Z0-9-]/g, "-");
 }
 
 function dropBrowserRuntimeLink(): void {
@@ -2305,7 +2307,7 @@ async function startDaemonInner(startEpoch: number, autoRestartIntent?: DaemonAu
 	let keepDaemonLogFd: number | undefined;
 	let stdio: "pipe" | "ignore" | ["pipe", number | "ignore", number | "ignore"] = "pipe";
 	if (keep) {
-		const logPath = path.join(os.homedir(), ".ao", "daemon.log");
+		const logPath = path.join(browserProfileStateDir(), "daemon.log");
 		try {
 			keepDaemonLogFd = openSync(logPath, "a");
 			stdio = ["pipe", keepDaemonLogFd, keepDaemonLogFd];
@@ -3007,6 +3009,7 @@ ipcMain.handle("telemetry:getGithubLogin", () => telemetryIdentity.githubLogin()
 ipcMain.handle("telemetry:getPolicy", () => telemetryPolicyController?.snapshot() ?? failClosedTelemetryPolicyView());
 ipcMain.handle("telemetry:setEventsEnabled", (_event, input: { eventsEnabled?: unknown; expectedGeneration?: unknown }) => {
 	if (!telemetryPolicyController || typeof input?.eventsEnabled !== "boolean" || typeof input.expectedGeneration !== "string") throw new Error("invalid telemetry policy request");
+	if (input.eventsEnabled) throw new Error("Telemetry is unavailable in this local edition.");
 	return telemetryPolicyController.setEventsEnabled(input.eventsEnabled, input.expectedGeneration);
 });
 ipcMain.on(TELEMETRY_RENDERER_QUEUES_CLEARED_CHANNEL, (event, input: unknown) => {
@@ -3290,7 +3293,7 @@ ipcMain.handle("appState:markFirstRunProjectPromptSeen", async () => {
 ipcMain.handle("updateSettings:get", async (): Promise<UpdateSettings> => {
 	const runFile = runFilePath();
 	if (!runFile) return { enabled: false, channel: "latest", nightlyAck: false, feature: null, macDifferentialUpdates: false };
-	return readUpdateSettings(path.dirname(runFile));
+	return { enabled: false, channel: "latest", nightlyAck: false, feature: null, macDifferentialUpdates: false };
 });
 ipcMain.handle("updateSettings:set", async (_event, settings: UpdateSettings) => {
 	const runFile = runFilePath();
@@ -3592,7 +3595,7 @@ function focusCloudWindow(): void {
 	window.focus();
 }
 
-// A shared session's link (ao-app://share/<code>, or ao-app://share/<orgId>/<token>
+// A shared session's link (ai-dev-studio-ultimate://share/<code>, or ai-dev-studio-ultimate://share/<orgId>/<token>
 // from before codes) the renderer has not taken yet: one that arrived before
 // the window was ready waits here. The renderer parses and checks it.
 let pendingShareLink: string | undefined;
@@ -3606,7 +3609,7 @@ ipcMain.handle("cloud:takePendingShareLink", () => {
 function isShareDeepLink(raw: string): boolean {
 	try {
 		const url = new URL(raw);
-		return url.protocol === "ao-app:" && url.hostname === "share";
+		return url.protocol === "ai-dev-studio-ultimate:" && url.hostname === "share";
 	} catch {
 		return false;
 	}
@@ -3641,13 +3644,13 @@ async function handleCloudDeepLinkAndFocus(url: string): Promise<void> {
 function isBillingDeepLink(raw: string): boolean {
 	try {
 		const url = new URL(raw);
-		return url.protocol === "ao-app:" && url.hostname === "billing";
+		return url.protocol === "ai-dev-studio-ultimate:" && url.hostname === "billing";
 	} catch {
 		return false;
 	}
 }
 
-// macOS: the OS sends the ao-app:// URL via the open-url event when the app is
+// macOS: the OS sends the ai-dev-studio-ultimate:// URL via the open-url event when the app is
 // already running. If the app is not running, the URL is passed in process.argv
 // on first launch (handled in app.whenReady below).
 app.on("open-url", (event, url) => {
@@ -3656,7 +3659,7 @@ app.on("open-url", (event, url) => {
 });
 
 app.on("second-instance", (_event, argv) => {
-	const deepLink = argv.find((value) => value.startsWith("ao-app://"));
+	const deepLink = argv.find((value) => value.startsWith("ai-dev-studio-ultimate://"));
 	if (deepLink) {
 		void handleCloudDeepLinkAndFocus(deepLink);
 		return;
@@ -3762,17 +3765,12 @@ async function writeAppStateOnLaunch(): Promise<void> {
 app.whenReady().then(async () => {
 	powerMonitor.on("suspend", () => recordUpdateDiagnostic("power-suspend"));
 	powerMonitor.on("resume", () => recordUpdateDiagnostic("power-resume"));
-	if (app.isPackaged) {
-		const { checkDesktopVersionFloor } = await import("./main/desktop-version-floor");
-		await checkDesktopVersionFloor().catch((err) =>
-			console.warn("desktop version floor check failed:", err),
-		);
-	}
 	void refreshGitHubOwners();
-	const authority = new TelemetryPolicyAuthority({ dataDir: desktopDataDir, packagedDefault: app.isPackaged, platform: process.platform });
+	const authority = new TelemetryPolicyAuthority({ dataDir: desktopDataDir, packagedDefault: false, platform: process.platform });
 	const policyController = new DesktopTelemetryController({
 		authority,
-		environmentAllowsEvents: rendererTelemetryEnabled(process.env, app.isPackaged),
+		environmentAllowsEvents: false,
+        productionEnabled: false,
 		transportFactory: () => initMainSentry(app.getVersion(), desktopDataDir, app.getPath("userData"), isDev),
 		clearTransportCache: () => clearMainSentryCache(app.getPath("userData")),
 		clearRendererQueues: clearRendererTelemetryQueues,
@@ -3922,8 +3920,8 @@ app.whenReady().then(async () => {
 	initAutoUpdates();
 
 	// Windows/Linux: on first launch, the deep-link URL may arrive as a
-	// process.argv entry (e.g. ao-app://callback?token=...).
-	const deepLinkArg = process.argv.find((a) => a.startsWith("ao-app://"));
+	// process.argv entry (e.g. ai-dev-studio-ultimate://callback?token=...).
+	const deepLinkArg = process.argv.find((a) => a.startsWith("ai-dev-studio-ultimate://"));
 	if (deepLinkArg) {
 		void handleCloudDeepLinkAndFocus(deepLinkArg);
 	}
