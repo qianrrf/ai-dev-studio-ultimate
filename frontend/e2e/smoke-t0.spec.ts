@@ -201,6 +201,6 @@ test("renderer: global settings page renders all sections @T0 @SET", async ({ pa
 	await expect(page.getByTestId("settings-page")).toBeVisible();
 	await page.getByRole("button", { name: "Updates" }).click();
 	await expect(page.locator('[data-testid="settings-section"][data-section="updates"]')).toBeVisible();
-	await page.getByRole("button", { name: "Help" }).click();
+	await page.getByRole("navigation", { name: "Settings sections" }).getByRole("button", { name: "Help", exact: true }).click();
 	await expect(page.getByLabel("Title")).toBeVisible();
 });

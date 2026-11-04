@@ -157,10 +157,11 @@ test("typed chat composer text is visibly selected with a pointer drag @T0", asy
 		const firstRect = firstRange.getBoundingClientRect();
 		const lastRect = lastRange.getBoundingClientRect();
 		return {
-			startX: lastRect.right - 1,
-			startY: lastRect.top + lastRect.height / 2,
-			endX: firstRect.left + 1,
-			endY: firstRect.top + firstRect.height / 2,
+			// Start away from the end caret: Windows can drag that caret instead of selecting text.
+			startX: firstRect.left + 1,
+			startY: firstRect.top + firstRect.height / 2,
+			endX: lastRect.right - 1,
+			endY: lastRect.top + lastRect.height / 2,
 		};
 	});
 	await page.mouse.move(textBounds.startX, textBounds.startY);

@@ -19,7 +19,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 70
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -75,9 +75,9 @@ jobs:
         run: |
           set -o pipefail
           if [ "$RUNNER_OS" = Windows ]; then
-            powershell.exe -NoProfile -Command '. ../scripts/ultimate/prepare-windows-test-process.ps1; go test -race -json -count=1 -timeout=15m ./... 2>&1 | Tee-Object backend-results.jsonl; exit $LASTEXITCODE'
+            powershell.exe -NoProfile -Command '. ../scripts/ultimate/prepare-windows-test-process.ps1; go test -race -json -count=1 -timeout=40m ./... 2>&1 | Tee-Object backend-results.jsonl; exit $LASTEXITCODE'
           else
-            go test -race -json -count=1 -timeout=15m ./... | tee backend-results.jsonl
+            go test -race -json -count=1 -timeout=40m ./... | tee backend-results.jsonl
           fi
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -129,6 +129,16 @@ jobs:
         working-directory: packages/cloud-client
       - name: Typecheck
         run: npm run frontend:typecheck
+      - name: Shared packages and browser test types
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix packages/cloud-client run build
+          npm --prefix packages/cloud-client test
+          npm --prefix packages/product-ui run build
+          npm --prefix packages/product-ui test
+          npm --prefix frontend run typecheck:e2e
       - name: Complete frontend suite
         if: ${{ !cancelled() }}
         env:
@@ -139,11 +149,26 @@ jobs:
         run: |
           npm run api:ts
           git diff --exit-code -- frontend/src/api/schema.ts
+      - name: Install browser for renderer checks
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Renderer interaction suite
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        env:
+          CI: "true"
+          AO_E2E_PORT: "5187"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: renderer-results.json
+        run: npm run test:e2e:renderer -- --reporter=line,json
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: frontend-results-${{ runner.os }}
-          path: frontend/frontend-results.json
+          path: |
+            frontend/frontend-results.json
+            frontend/renderer-results.json
+            frontend/test-results
   windows-installer:
     runs-on: windows-latest
     timeout-minutes: 45

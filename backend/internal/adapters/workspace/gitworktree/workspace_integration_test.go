@@ -1295,7 +1295,7 @@ func TestWorkspaceIntegrationWorkspaceProjectCopiesAssetsAndCleansSessionCopy(t 
 	if err != nil || string(copied) != "source context" {
 		t.Fatalf("copied asset = %q, %v", copied, err)
 	}
-	if target, err := os.Readlink(filepath.Join(info.Root.Path, "notes", "latest")); err != nil || target != "nested/context.txt" {
+	if target, err := os.Readlink(filepath.Join(info.Root.Path, "notes", "latest")); err != nil || target != filepath.FromSlash("nested/context.txt") {
 		t.Fatalf("copied symlink = %q, %v", target, err)
 	}
 	if _, err := os.Stat(filepath.Join(info.Root.Path, "notes", ".git")); !errors.Is(err, os.ErrNotExist) {

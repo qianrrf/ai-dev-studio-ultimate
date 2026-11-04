@@ -39,6 +39,10 @@ func TestReadDescriptorRetriesSharingViolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := os.ReadFile(path); !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		_ = windows.CloseHandle(handle)
+		t.Fatalf("locked descriptor read error = %v, want sharing violation", err)
+	}
 	released := make(chan struct{})
 	go func() {
 		time.Sleep(100 * time.Millisecond)
@@ -46,9 +50,6 @@ func TestReadDescriptorRetriesSharingViolation(t *testing.T) {
 		close(released)
 	}()
 	defer func() { <-released }()
-	if _, err := os.ReadFile(path); !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-		t.Fatalf("locked descriptor read error = %v, want sharing violation", err)
-	}
 	got, err := readDescriptor(dataDir, d.SessionID)
 	if err != nil {
 		t.Fatalf("read shutdown descriptor: %v", err)
