@@ -62,6 +62,8 @@ beforeEach(() => {
 	useUiStore.setState({ settingsModal: null });
 	catalog = { agents: [agentReadiness("claude-code", "Claude Code"), agentReadiness("codex", "Codex")] };
 	vi.spyOn(apiClient, "GET").mockImplementation(async (path) => {
+		if (path === "/api/v1/projects/{id}/control") return { data: { projectId: "proj-1", ownerKind: "unowned", ownerId: "", revision: 0 } } as never;
+		if (path === "/api/v1/projects/{id}/requests") return { data: { requests: [] } } as never;
 		if (path === "/api/v1/projects/{id}") return { data: { status: "ok", project } } as never;
 		if (path === "/api/v1/agents/readiness") return { data: catalog } as never;
 		if (path === "/api/v1/agents/installers") return { data: { agents: [] } } as never;

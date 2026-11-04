@@ -1252,6 +1252,9 @@ func writeConversationErrorWithCode(w http.ResponseWriter, r *http.Request, err 
 	case errors.Is(err, domain.ErrClientMessageConflict):
 		envelope.WriteAPIError(w, r, http.StatusConflict, "conflict",
 			"CHAT_MESSAGE_IDEMPOTENCY_CONFLICT", "clientMessageId belongs to a different message", nil)
+	case errors.Is(err, domain.ErrProjectControlConflict):
+		envelope.WriteAPIError(w, r, http.StatusConflict, "conflict",
+			"PROJECT_CONTROL_CONFLICT", "Send requirements to the current Codex controller; worker continuations require a registered delivery operation", nil)
 
 	case errors.Is(err, chatsvc.ErrTurnRunning):
 		// Retryable, unlike every other refusal here: the same request works once

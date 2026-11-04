@@ -335,7 +335,16 @@ func (w *Workspace) Create(ctx context.Context, cfg ports.WorkspaceConfig) (port
 	}
 	seedRef := ""
 	seedSHA := ""
-	if cfg.FreshBranch {
+	if cfg.FixedCommit != "" {
+		if !cfg.FreshBranch || !cfg.RequireNewBranch {
+			return ports.WorkspaceInfo{}, fmt.Errorf("gitworktree: fixed commit requires a fresh, unused branch")
+		}
+		seedSHA, err = w.revParse(ctx, repo, cfg.FixedCommit+"^{commit}")
+		if err != nil || seedSHA != cfg.FixedCommit {
+			return ports.WorkspaceInfo{}, fmt.Errorf("gitworktree: fixed commit must be a full existing commit SHA")
+		}
+		cfg.BaseRef, seedRef = seedSHA, seedSHA
+	} else if cfg.FreshBranch {
 		refs, err := w.resolveWorktreeRefsWithBudget(ctx, repo, cfg.Branch, cfg.BaseBranch)
 		if err != nil {
 			return ports.WorkspaceInfo{}, err

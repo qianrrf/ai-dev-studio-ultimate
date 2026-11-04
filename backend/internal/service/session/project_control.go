@@ -43,11 +43,15 @@ func (s *Service) SetProjectControl(ctx context.Context, id domain.ProjectID, ki
 	if !ok {
 		return domain.ProjectControl{}, fmt.Errorf("project control storage unavailable")
 	}
+	previous, _, err := store.GetProjectControl(ctx, id)
+	if err != nil {
+		return domain.ProjectControl{}, err
+	}
 	c, err := store.SetProjectControl(ctx, id, kind, owner, expected, s.now())
 	if err != nil {
 		return c, toSpawnAPIError(err)
 	}
-	if c.OwnerKind == "internal" {
+	if c.OwnerKind == "internal" && (previous.OwnerKind != "internal" || previous.OwnerID != c.OwnerID) {
 		s.notifyProjectController(ctx, c, "handover")
 	}
 	return c, nil
@@ -86,7 +90,8 @@ func (s *Service) notifyProjectController(ctx context.Context, control domain.Pr
 		return
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", control.ProjectID, control.Revision, requestID)))
-	message := fmt.Sprintf("You are the current Codex controller for project %s (owner %s, revision %d). Reconcile the durable requirements with `ao project inbox %s`, sessions and reports. Decide task decomposition, dispatch, independent Codex review, rework (maximum two business rounds) and acceptance. Use stable request IDs with --controller %s --control-revision %d --request-id on every worker dispatch. Preserve manual approvals. Do not duplicate uncertain executions. User requirement notification: %s. Attachments remain in the project inbox API.", control.ProjectID, control.OwnerID, control.Revision, control.ProjectID, control.OwnerID, control.Revision, requestID)
+	message := fmt.Sprintf("You are the current Codex controller for project %s (owner %s, revision %d). Requirements in the inbox govern what you may dispatch. Use CLI/HTTP; legacy global AO MCP tools lack control claims and must not be used to dispatch. Refresh stale claims by querying control, never by taking over again. Reconcile the durable requirements with `ao project inbox %s`, sessions and reports. Decide task decomposition, dispatch, independent Codex review, rework (maximum two business rounds) and acceptance. Use stable request IDs with --controller %s --control-revision %d --request-id on every worker dispatch. Preserve manual approvals. Do not duplicate uncertain executions. User requirement notification: %s. Attachments remain in the project inbox API.", control.ProjectID, control.OwnerID, control.Revision, control.ProjectID, control.OwnerID, control.Revision, requestID)
+	message += " Workers must commit their changes. Use `ao session delivery <worker>` to reconcile existing receipts. Register each operation with --kind test|review|verdict|rework|accept, --request-id, --controller, --control-revision, --base <full SHA> and --head <full SHA>. For test, append -- <executable> <args>; only actual successful test evidence permits review. For review, pass --test-id; this creates an independent read-only Codex session at the fixed head. After that reviewer finishes, use verdict with --review-id <review receipt>. Rework or accept references the verdict receipt via --review-id and requires --message. Accept also requires the matching --test-id. Direct worker continuation is refused; use registered rework only, at most twice. Changed/dirty commits invalidate evidence. A pending receipt is uncertain: inspect its session/logs and never redispatch it blindly."
 	if err := sender.SendSemantic(ctx, domain.SessionID(control.OwnerID), message, fmt.Sprintf("project-intake-%x", digest)); err != nil && s.logger != nil {
 		s.logger.Warn("controller notification deferred; requirement retained", "projectId", control.ProjectID, "err", err)
 	}

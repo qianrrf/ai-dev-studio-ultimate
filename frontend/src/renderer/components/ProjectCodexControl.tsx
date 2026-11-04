@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
 import { Button } from "./ui/button";
 
 // Ownership and inbox facts live in the daemon. Opening settings never starts a model.
 export function ProjectCodexControl({ projectId }: { projectId: string }) {
+	const { t } = useTranslation();
 	const queryClient = useQueryClient();
 	const [owner, setOwner] = useState("external-codex");
 	const key = ["project-codex-control", projectId];
@@ -51,14 +53,14 @@ export function ProjectCodexControl({ projectId }: { projectId: string }) {
 		},
 		onSettled: async () => { await queryClient.invalidateQueries({ queryKey: key }); },
 	});
-	return <section className="flex flex-col gap-3" aria-label="Codex 主控">
-		<h3 className="text-sm font-medium">Codex 主控</h3>
-		<p className="text-sm text-settings-muted">新需求由当前主控安排；最多同时执行两个 DSH Worker。切换主控会保留已有任务。</p>
+	return <section className="flex flex-col gap-3" aria-label={t("projectControl.title")}>
+		<h3 className="text-sm font-medium">{t("projectControl.title")}</h3>
+		<p className="text-sm text-settings-muted">{t("projectControl.description")}</p>
 		{control.data && <p role="status" className="text-sm">{control.data.ownerKind === "unowned" ? "等待接管" : control.data.ownerKind === "internal" ? "产品内 Codex" : "外部 Codex"} · {control.data.ownerId || "未指定"} · 版本 {control.data.revision}</p>}
 		<label className="text-sm">外部主控标识<input className="settings-input ml-2" value={owner} onChange={(e) => setOwner(e.target.value)} maxLength={128} /></label>
 		<div className="flex flex-wrap gap-2">
-			<Button type="button" disabled={!control.data || change.isPending} onClick={() => change.mutate("internal")}>产品内 Codex 接管</Button>
-			<Button type="button" disabled={!control.data || change.isPending || !owner.trim()} onClick={() => change.mutate("external")}>外部 Codex 接管</Button>
+			<Button type="button" disabled={!control.data || change.isPending} onClick={() => change.mutate("internal")}>{t("projectControl.takeInternal")}</Button>
+			<Button type="button" disabled={!control.data || change.isPending || !owner.trim()} onClick={() => change.mutate("external")}>{t("projectControl.takeExternal")}</Button>
 			<Button type="button" disabled={!control.data || change.isPending || control.data.ownerKind === "unowned"} onClick={() => change.mutate("unowned")}>释放主控</Button>
 		</div>
 		{(change.error || control.error || inbox.error) && <p role="alert" className="text-sm text-error">{(change.error || control.error || inbox.error)?.message}</p>}

@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Codex 컨트롤러",
+	"projectControl.description": "새 요구사항은 현재 컨트롤러로 전달됩니다. DSH 작업자는 최대 두 개까지 동시에 실행됩니다. 컨트롤러를 전환해도 기존 작업은 유지됩니다.",
+	"projectControl.takeInternal": "내부 Codex 사용",
+	"projectControl.takeExternal": "외부 Codex 사용",
 	"sideChat.closingTab": "닫는 중",
 	"sideChat.closing": "사이드 채팅을 닫는 중입니다. 종료가 확인되면 사라집니다.",
 	"sideChat.retryClose": "닫기 재시도",

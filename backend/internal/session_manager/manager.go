@@ -2021,6 +2021,9 @@ func (m *Manager) defaultBranchFetchedRecently(repoPath, baseRef string) bool {
 }
 
 func (m *Manager) createSessionWorkspace(ctx context.Context, project domain.ProjectRecord, cfg ports.SpawnConfig, id domain.SessionID, branch string, baseRefs map[string]string) (ports.WorkspaceInfo, *ports.WorkspaceProjectInfo, error) {
+	if cfg.ReviewCommit != "" && (!cfg.ReadOnly || cfg.Harness != domain.HarnessCodex || project.Kind.WithDefault() != domain.ProjectKindSingleRepo) {
+		return ports.WorkspaceInfo{}, nil, errors.New("fixed-commit review requires read-only Codex in a single repository")
+	}
 	projectKind := project.Kind.WithDefault()
 	if cfg.ProjectID == "" {
 		projectKind = domain.ProjectKindScratch
@@ -2040,6 +2043,10 @@ func (m *Manager) createSessionWorkspace(ctx context.Context, project domain.Pro
 			RequireNewBranch: cfg.RequireNewBranch,
 			BaseBranch:       baseBranch,
 			BaseRef:          baseRefs[filepath.Clean(project.Path)],
+		}
+		if cfg.ReviewCommit != "" {
+			workspaceCfg.FixedCommit = cfg.ReviewCommit
+			workspaceCfg.FreshBranch = true
 		}
 		ws, err := m.workspace.Create(ctx, workspaceCfg)
 		if errors.Is(err, ports.ErrWorkspaceBranchCheckedOutElsewhere) && cfg.Kind == domain.KindOrchestrator && cfg.Branch == "" {
@@ -5799,7 +5806,9 @@ func seedRecord(cfg ports.SpawnConfig, projectConfig domain.ProjectConfig, now t
 		AutoInjectCI:      true,
 	}
 	if cfg.Control != nil {
-		rec.ProvisionState = domain.SessionProvisionProvisioning
+		if cfg.Async {
+			rec.ProvisionState = domain.SessionProvisionProvisioning
+		}
 		rec.AutoReviewEnabled = false
 	}
 	return rec

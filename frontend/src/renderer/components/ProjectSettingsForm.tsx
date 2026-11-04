@@ -139,6 +139,17 @@ function SettingsBody({ project, projectId, hostId, hostConnected, onSaved, sect
 	const remoteProjectQuery = useRemoteProjectQuery(hostId ?? "", projectId);
 	const config = project.config ?? {};
 	const isScratchProject = project.kind === "scratch";
+	const control = useQuery({
+		queryKey: ["project-codex-control", projectId],
+		enabled: !hostId && !isScratchProject && project.kind !== "workspace",
+		refetchInterval: 5000,
+		queryFn: async () => {
+			const { data, error } = await apiClient.GET("/api/v1/projects/{id}/control", { params: { path: { id: projectId } } });
+			if (error || !data) throw new Error(apiErrorMessage(error));
+			return data;
+		},
+	});
+	const controlled = (control.data?.revision ?? 0) > 0;
 	const { settings } = useSettings(hostId);
 	const intakeVisible = !isScratchProject && !!settings?.trackerIntakeEnabled;
 	const workspace = hostId ? remoteProjectQuery.data : workspaceQuery.data?.find((item) => item.id === projectId);
@@ -322,7 +333,7 @@ function SettingsBody({ project, projectId, hostId, hostConnected, onSaved, sect
 		}
 	};
 	return <ProjectSettingsEditor initialValues={initialValues} section={section} disabled={!hostConnected}
-		capabilities={{ workflow: !isScratchProject, sessionPrefix: !isScratchProject, intake: intakeVisible, reviewer: !isScratchProject, requiredAgents: true, workersRequestReview: !isScratchProject }}
+		capabilities={{ workflow: !isScratchProject && !controlled, sessionPrefix: !isScratchProject, intake: intakeVisible, reviewer: !isScratchProject, requiredAgents: true, workersRequestReview: !isScratchProject && !controlled, lockedAgents: controlled }}
 		details={[{ label: t("settings.project.path"), value: project.path, href: hostId ? undefined : `file://${encodeURI(project.path)}` }, { label: t("settings.project.repo"), value: project.repo || "—", href: project.repo ? repositoryHref(project.repo) : undefined }]}
 		workspaceRepos={project.kind === "workspace" ? project.workspaceRepos ?? [] : undefined} repository={project.repo}
 		modelScope={() => ""} defaultReviewer={(draft) => WORKER_DEFAULT_REVIEWERS[draft.workerAgent] ?? "claude-code"}
@@ -332,10 +343,10 @@ function SettingsBody({ project, projectId, hostId, hostConnected, onSaved, sect
 		renderAgent={(props) => <LocalAgentPicker {...props} projectId={projectId} hostId={hostId} agentsQuery={agentsQuery} />} />;
 }
 
-function LocalAgentPicker({ role, draft, value, invalid, onChange, projectId, hostId, agentsQuery }: ProjectAgentPickerProps & { projectId: string; hostId?: string; agentsQuery: ReturnType<typeof useAgentReadinessQuery> }) {
+function LocalAgentPicker({ role, draft, value, invalid, disabled: policyDisabled, onChange, projectId, hostId, agentsQuery }: ProjectAgentPickerProps & { projectId: string; hostId?: string; agentsQuery: ReturnType<typeof useAgentReadinessQuery> }) {
 	const { t } = useTranslation();
 	useEnsureAgentReadiness({ agentIds: [draft.workerAgent, draft.orchestratorAgent, draft.reviewerHarness], enabled: role === "worker" && Boolean(draft.workerAgent || draft.orchestratorAgent || draft.reviewerHarness), hostId, purpose: hostId ? "launch" : "display" });
-	const disabled = agentsQuery.isFetching && agentsQuery.data === undefined;
+	const disabled = policyDisabled || (agentsQuery.isFetching && agentsQuery.data === undefined);
 	const agents = hostId ? agentsQuery.data?.agents.filter(isLaunchableAgent) : agentsQuery.data?.agents;
 	return role === "reviewer"
 		? <ReviewerSelect value={value} model={draft.reviewerModel} mode={draft.reviewerMode} projectId={projectId} hostId={hostId} harnessOnly defaultHarness={WORKER_DEFAULT_REVIEWERS[draft.workerAgent] ?? "claude-code"} triggerClassName="w-full" onChange={onChange} ariaLabel={t("settings.project.defaultReviewer")} agents={agents} disabled={disabled} />

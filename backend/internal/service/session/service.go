@@ -461,7 +461,9 @@ func (s *Service) spawnWithTelemetry(ctx context.Context, cfg ports.SpawnConfig,
 		cfg.KeepDisplayName = cfg.DisplayName != ""
 	}
 	if managed {
-		cfg.Async = true
+		if !cfg.ReadOnly {
+			cfg.Async = true
+		}
 		cfg.NameFromPrompt = false
 		cfg.TaskPreparation = ""
 		if cfg.RequestedMode != "" && cfg.RequestedMode != domain.SessionModeChat {

@@ -353,6 +353,9 @@ func (m *sideManager) announce(sideID string) {
 
 // CreateIndependentSideChat opens or reuses a side anchored to a completed main turn.
 func (s *Service) CreateIndependentSideChat(ctx context.Context, id domain.SessionID, req SideCreateRequest) (domain.SideConversation, error) {
+	if err := s.checkIndependentSide(ctx, id); err != nil {
+		return domain.SideConversation{}, err
+	}
 	if s.sides == nil || s.sides.launchID() == "" {
 		return domain.SideConversation{}, ErrSideUnavailable
 	}
@@ -1601,6 +1604,9 @@ func (m *sideManager) ownedSide(ctx context.Context, session domain.SessionID, s
 
 // SendSideQuestion accepts a question for the side provider.
 func (s *Service) SendSideQuestion(ctx context.Context, session domain.SessionID, sideID string, msg ports.ChatUserMessage) (domain.SideTurn, error) {
+	if err := s.checkIndependentSide(ctx, session); err != nil {
+		return domain.SideTurn{}, err
+	}
 	if s.sides == nil {
 		return domain.SideTurn{}, ErrSideUnavailable
 	}
@@ -1681,6 +1687,9 @@ func (s *Service) SendSideQuestion(ctx context.Context, session domain.SessionID
 
 // EditQueuedSideQuestion replaces the text of a queued side question.
 func (s *Service) EditQueuedSideQuestion(ctx context.Context, session domain.SessionID, sideID, turnID, text string) error {
+	if err := s.checkIndependentSide(ctx, session); err != nil {
+		return err
+	}
 	if s.sides == nil {
 		return ErrSideUnavailable
 	}
@@ -1699,6 +1708,9 @@ func (s *Service) EditQueuedSideQuestion(ctx context.Context, session domain.Ses
 
 // RetrySideQuestion requeues a failed side question.
 func (s *Service) RetrySideQuestion(ctx context.Context, session domain.SessionID, sideID, turnID string) error {
+	if err := s.checkIndependentSide(ctx, session); err != nil {
+		return err
+	}
 	if s.sides == nil {
 		return ErrSideUnavailable
 	}

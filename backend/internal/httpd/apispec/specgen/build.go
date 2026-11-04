@@ -161,6 +161,10 @@ func schemaName(_ reflect.Type, defaultName string) string {
 var schemaNames = map[string]string{ //nolint:gosec // Public OpenAPI type names include reset-credit contracts; no credential value is stored here.
 	"DomainControlClaim":                                   "ControlClaim",
 	"DomainProjectControl":                                 "ProjectControl",
+	"DomainDeliveryRequest":                                "DeliveryRequest",
+	"DomainDeliveryResult":                                 "DeliveryResult",
+	"DomainDeliveryEvidence":                               "DeliveryEvidence",
+	"ControllersDeliveryEvidenceResponse":                  "DeliveryEvidenceResponse",
 	"DomainProjectRequest":                                 "ProjectRequest",
 	"DomainRequestAttachment":                              "RequestAttachment",
 	"ControllersProjectControlRequest":                     "ProjectControlRequest",
@@ -3765,6 +3769,19 @@ func sessionOperations() []operation {
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/sessions/{sessionId}/delivery", id: "getDeliveryEvidence", tag: "sessions",
+			summary:    "Read immutable delivery evidence and derive current commit validity",
+			pathParams: []any{controllers.SessionIDParam{}},
+			resps:      []respUnit{{http.StatusOK, controllers.DeliveryEvidenceResponse{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/sessions/{sessionId}/delivery", id: "runDeliveryOperation", tag: "sessions",
+			summary:    "Register and execute a controller-authorized test, review or delivery decision",
+			pathParams: []any{controllers.SessionIDParam{}},
+			reqBody:    domain.DeliveryRequest{},
+			resps:      []respUnit{{http.StatusOK, domain.DeliveryEvidence{}}, {http.StatusBadRequest, envelope.APIError{}}, {http.StatusNotFound, envelope.APIError{}}, {http.StatusConflict, envelope.APIError{}}, {http.StatusInternalServerError, envelope.APIError{}}},
 		},
 		{
 			method: http.MethodGet, path: "/api/v1/projects/{id}/control", id: "getProjectControl", tag: "projects",

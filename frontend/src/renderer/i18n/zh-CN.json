@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Codex 主控",
+	"projectControl.description": "新需求由当前主控安排；最多同时执行两个 DSH Worker。切换主控会保留已有任务。",
+	"projectControl.takeInternal": "产品内 Codex 接管",
+	"projectControl.takeExternal": "外部 Codex 接管",
 	"sideChat.closingTab": "正在关闭",
 	"sideChat.closing": "正在关闭侧边聊天。确认停止后将消失。",
 	"sideChat.retryClose": "重试关闭",

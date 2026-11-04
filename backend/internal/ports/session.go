@@ -16,10 +16,12 @@ var ErrActivityProjectionContention = errors.New("activity projection contention
 // SpawnConfig is the request to start a new session: which project/issue, which
 // agent harness, and the branch/prompt the agent launches with.
 type SpawnConfig struct {
-	Control   *domain.ControlClaim
-	ReadOnly  bool
-	ProjectID domain.ProjectID
-	IssueID   domain.IssueID
+	// ReviewCommit is daemon-only and fixes a read-only Codex review workspace.
+	ReviewCommit string
+	Control      *domain.ControlClaim
+	ReadOnly     bool
+	ProjectID    domain.ProjectID
+	IssueID      domain.IssueID
 	// AutomationRunID makes one scheduled occurrence idempotent across daemon
 	// restarts. Ordinary interactive spawns leave this unset.
 	AutomationRunID *domain.AutomationRunID

@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Codex-Steuerung",
+	"projectControl.description": "Neue Anforderungen gehen an die aktuelle Steuerung. Bis zu zwei DSH-Worker laufen gleichzeitig. Ein Wechsel erhält bestehende Aufgaben.",
+	"projectControl.takeInternal": "Internes Codex verwenden",
+	"projectControl.takeExternal": "Externes Codex verwenden",
 	"sideChat.closingTab": "Wird geschlossen",
 	"sideChat.closing": "Seitenchat wird geschlossen. Er verschwindet nach bestätigtem Herunterfahren.",
 	"sideChat.retryClose": "Schließen erneut versuchen",

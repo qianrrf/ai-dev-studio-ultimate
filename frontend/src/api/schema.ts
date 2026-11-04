@@ -3214,6 +3214,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sessions/{sessionId}/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read immutable delivery evidence and derive current commit validity */
+        get: operations["getDeliveryEvidence"];
+        put?: never;
+        /** Register and execute a controller-authorized test, review or delivery decision */
+        post: operations["runDeliveryOperation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions/{sessionId}/exit-agent": {
         parameters: {
             query?: never;
@@ -6016,6 +6034,45 @@ export interface components {
         DeleteSessionResponse: {
             ok: boolean;
             sessionId: string;
+        };
+        DeliveryEvidence: {
+            /** Format: date-time */
+            completedAt?: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            current: boolean;
+            id: string;
+            projectId: string;
+            request: components["schemas"]["DeliveryRequest"];
+            result?: components["schemas"]["DeliveryResult"];
+            workerId: string;
+            workerPath: string;
+        };
+        DeliveryEvidenceResponse: {
+            evidence: components["schemas"]["DeliveryEvidence"][];
+        };
+        DeliveryRequest: {
+            baseSha: string;
+            command?: string[];
+            control: components["schemas"]["ControlClaim"];
+            headSha: string;
+            id: string;
+            /** @enum {string} */
+            kind: "test" | "review" | "verdict" | "rework" | "accept";
+            message?: string;
+            reviewId?: string;
+            testId?: string;
+        };
+        DeliveryResult: {
+            delivered?: boolean;
+            error?: string;
+            exitCode?: null | number;
+            messageId?: string;
+            output?: string;
+            reviewerId?: string;
+            reviewerPath?: string;
+            truncated?: boolean;
+            verdict?: string;
         };
         DesktopArtifactLocationResponse: {
             artifactDir: string;
@@ -19598,6 +19655,110 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getDeliveryEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session identifier, e.g. project-1. */
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryEvidenceResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    runDeliveryOperation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session identifier, e.g. project-1. */
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryEvidence"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -245,6 +245,7 @@ var shippedMigrations = map[int64]string{
 	20261102164353715: "20261102164353715_automation_template_metadata.sql",
 	20261103171703963: "20261103171703963_session_read_only.sql",
 	20261104114332544: "20261104114332544_project_codex_control.sql",
+	20261104130025680: "20261104130025680_project_delivery_evidence.sql",
 }
 
 // burnedVersion reports version numbers that must never be (re)used: they

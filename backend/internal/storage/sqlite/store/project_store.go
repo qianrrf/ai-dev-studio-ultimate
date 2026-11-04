@@ -96,6 +96,11 @@ func (s *Store) ListWorkspaceRepos(ctx context.Context, projectID string) ([]dom
 }
 
 func upsertProject(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, config sql.NullString) error {
+	var err error
+	config, err = controlledProjectWrite(ctx, q, r, config)
+	if err != nil {
+		return err
+	}
 	kind := r.Kind.WithDefault()
 	return q.UpsertProject(ctx, gen.UpsertProjectParams{
 		ID:            domain.ProjectID(r.ID),
@@ -110,6 +115,11 @@ func upsertProject(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, 
 }
 
 func importProject(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, config sql.NullString) error {
+	var policyErr error
+	config, policyErr = controlledProjectWrite(ctx, q, r, config)
+	if policyErr != nil {
+		return policyErr
+	}
 	existingByID, err := q.GetProject(ctx, domain.ProjectID(r.ID))
 	if err == nil {
 		if existingByID.ArchivedAt.Valid {
@@ -162,6 +172,23 @@ func importProject(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, 
 	})
 }
 
+// Registration/import must preserve the same policy as the settings endpoint.
+func controlledProjectWrite(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, config sql.NullString) (sql.NullString, error) {
+	if _, err := q.GetProjectControl(ctx, r.ID); errors.Is(err, sql.ErrNoRows) {
+		return config, nil
+	} else if err != nil {
+		return config, err
+	}
+	prior, err := q.GetProject(ctx, domain.ProjectID(r.ID))
+	if err != nil {
+		return config, err
+	}
+	if prior.Path != r.Path || r.Kind.WithDefault() != domain.ProjectKindSingleRepo {
+		return config, domain.ErrProjectControlConflict
+	}
+	return marshalProjectConfig(codexControlledConfig(unmarshalProjectConfig(config)))
+}
+
 // GetProject returns a project by id, active or archived.
 func (s *Store) GetProject(ctx context.Context, id string) (domain.ProjectRecord, bool, error) {
 	p, err := s.qr.GetProject(ctx, domain.ProjectID(id))
@@ -203,12 +230,17 @@ func (s *Store) ListProjects(ctx context.Context) ([]domain.ProjectRecord, error
 // config for an active project. It returns ok=false when the project is missing
 // or archived.
 func (s *Store) UpdateProjectSettings(ctx context.Context, id, displayName string, config domain.ProjectConfig) (bool, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if _, err := s.qw.GetProjectControl(ctx, id); err == nil {
+		config = codexControlledConfig(config)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
 	encodedConfig, err := marshalProjectConfig(config)
 	if err != nil {
 		return false, err
 	}
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
 	rows, err := s.qw.UpdateProjectSettings(ctx, gen.UpdateProjectSettingsParams{
 		ID:          domain.ProjectID(id),
 		DisplayName: displayName,

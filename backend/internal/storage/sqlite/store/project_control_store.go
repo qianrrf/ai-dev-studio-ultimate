@@ -45,14 +45,7 @@ func (s *Store) SetProjectControl(ctx context.Context, id domain.ProjectID, kind
 		if domain.ProjectKind(project.Kind).WithDefault() != domain.ProjectKindSingleRepo {
 			return fmt.Errorf("Codex control requires a single-repository project")
 		}
-		config := unmarshalProjectConfig(project.Config)
-		config.Worker.Harness = domain.HarnessDeepSeek
-		config.Orchestrator.Harness = domain.HarnessCodex
-		config.Reviewers = []domain.ReviewerConfig{{Harness: domain.ReviewerCodex}}
-		config.AutoReview, config.WorkersRequestReview = false, false
-		if config.AgentConfig.Permissions == "" {
-			config.AgentConfig.Permissions = domain.PermissionModeDefault
-		}
+		config := codexControlledConfig(unmarshalProjectConfig(project.Config))
 		encoded, err := marshalProjectConfig(config)
 		if err != nil {
 			return err
@@ -90,10 +83,29 @@ func (s *Store) SetProjectControl(ctx context.Context, id domain.ProjectID, kind
 			}
 		}
 		row, err := q.GetProjectControl(ctx, string(id))
+		if err != nil {
+			return err
+		}
+		if err := q.DisableControlledProjectAutoReview(ctx, optionalProjectID(id)); err != nil {
+			return err
+		}
 		out = projectControlRecord(row)
 		return err
 	})
 	return out, err
+}
+
+func codexControlledConfig(config domain.ProjectConfig) domain.ProjectConfig {
+	config.Worker.Harness = domain.HarnessDeepSeek
+	config.Orchestrator.Harness = domain.HarnessCodex
+	if len(config.Reviewers) != 1 || config.Reviewers[0].Harness != domain.ReviewerCodex {
+		config.Reviewers = []domain.ReviewerConfig{{Harness: domain.ReviewerCodex}}
+	}
+	config.AutoReview, config.WorkersRequestReview = false, false
+	if config.AgentConfig.Permissions == "" {
+		config.AgentConfig.Permissions = domain.PermissionModeDefault
+	}
+	return config
 }
 
 // AddProjectRequest makes user intake idempotent independently of worker launch.

@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Контроллер Codex",
+	"projectControl.description": "Новые требования поступают текущему контроллеру. Одновременно работают до двух агентов DSH. Смена контроллера сохраняет существующие задачи.",
+	"projectControl.takeInternal": "Использовать внутренний Codex",
+	"projectControl.takeExternal": "Использовать внешний Codex",
 	"sideChat.closingTab": "Закрытие",
 	"sideChat.closing": "Боковой чат закрывается. Он исчезнет после подтверждения завершения работы.",
 	"sideChat.retryClose": "Повторить закрытие",

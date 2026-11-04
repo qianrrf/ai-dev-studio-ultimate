@@ -19,7 +19,7 @@ it("loads retained requirements without launching a model and uses the observed 
 	show();
 	await screen.findByText("修复计算器");
 	expect(h.post).not.toHaveBeenCalled();
-	fireEvent.click(screen.getByRole("button", { name: "外部 Codex 接管" }));
+	fireEvent.click(screen.getByRole("button", { name: "Use external Codex" }));
 	await waitFor(() => expect(h.put).toHaveBeenCalledWith("/api/v1/projects/{id}/control", { params: { path: { id: "demo" } }, body: { ownerKind: "external", ownerId: "external-codex", expectedRevision: 7 } }));
 });
 it("keeps a takeover conflict visible and does not silently retry or launch another controller", async () => {

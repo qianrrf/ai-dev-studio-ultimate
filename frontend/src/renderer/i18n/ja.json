@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Codex コントローラー",
+	"projectControl.description": "新しい要件は現在のコントローラーに送られます。DSH ワーカーは最大2つ同時に実行できます。切り替えても既存のタスクは保持されます。",
+	"projectControl.takeInternal": "内部 Codex を使用",
+	"projectControl.takeExternal": "外部 Codex を使用",
 	"sideChat.closingTab": "終了中",
 	"sideChat.closing": "サイドチャットを閉じています。終了が確認されると消えます。",
 	"sideChat.retryClose": "閉じる操作を再試行",

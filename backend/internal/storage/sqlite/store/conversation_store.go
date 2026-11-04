@@ -1359,6 +1359,11 @@ func (s *Store) appendUserMessage(
 	}
 
 	err = s.inTx(ctx, "append user message", func(q *gen.Queries) error {
+		if session != "" && reviewID == "" && !msg.SpawnOpeningPrompt {
+			if err := checkProjectChatDelivery(ctx, q, session); err != nil {
+				return err
+			}
+		}
 		if autoResume {
 			source, err := q.SelectConversationTurnByID(ctx, retryOfTurnID)
 			if err != nil {

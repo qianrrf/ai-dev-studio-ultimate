@@ -165,6 +165,9 @@ func (s *Service) EditMessage(
 	turnID string,
 	msg ports.ChatUserMessage,
 ) (EditMessageResult, error) {
+	if err := s.checkProjectDelivery(ctx, id); err != nil {
+		return EditMessageResult{}, err
+	}
 	requestJSON, err := encodeEditDeliveryRequest(turnID, msg)
 	if err != nil {
 		return EditMessageResult{}, err

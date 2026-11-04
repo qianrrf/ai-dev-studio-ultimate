@@ -1,0 +1,100 @@
+name: Ultimate validation
+
+on:
+  push:
+    branches: [aidsu/windows-mvp]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ultimate-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Install test shells
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
+      - name: Build, vet and test with race detection
+        working-directory: backend
+        env:
+          skip_global_compinit: "1"
+        run: |
+          go build ./...
+          go vet ./...
+          go test -race -count=1 -timeout=45m ./...
+      - name: Check generated API
+        working-directory: backend
+        run: |
+          go generate ./internal/httpd/apispec/...
+          git diff --exit-code -- internal/httpd/apispec/openapi.yaml
+      - name: Lint
+        working-directory: backend
+        run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run --path-mode=abs
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: frontend
+      - name: Types, complete frontend suite and API types
+        env:
+          TZ: UTC
+        run: |
+          npm run frontend:typecheck
+          npm --prefix frontend test
+          npm run api:ts
+          git diff --exit-code -- frontend/src/api/schema.ts
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - id: product
+        shell: pwsh
+        run: |
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          "ready=$($version -eq '0.1.0-alpha.1')" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-go@v5
+        if: steps.product.outputs.ready == 'True'
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        if: steps.product.outputs.ready == 'True'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build unsigned Windows installer
+        if: steps.product.outputs.ready == 'True'
+        working-directory: frontend
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          npm ci
+          npm run make
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem out/make -Recurse -Filter *.exe | Get-FileHash -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        if: steps.product.outputs.ready == 'True'
+        with:
+          name: ai-dev-studio-ultimate-windows-x64
+          path: frontend/out/make/**/*.exe
+          if-no-files-found: error

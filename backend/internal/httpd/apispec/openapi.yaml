@@ -8992,6 +8992,90 @@ paths:
       summary: Promote a queued message into the in-flight turn
       tags:
       - conversations
+  /api/v1/sessions/{sessionId}/delivery:
+    get:
+      operationId: getDeliveryEvidence
+      parameters:
+      - description: Session identifier, e.g. project-1.
+        in: path
+        name: sessionId
+        required: true
+        schema:
+          description: Session identifier, e.g. project-1.
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryEvidenceResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Read immutable delivery evidence and derive current commit validity
+      tags:
+      - sessions
+    post:
+      operationId: runDeliveryOperation
+      parameters:
+      - description: Session identifier, e.g. project-1.
+        in: path
+        name: sessionId
+        required: true
+        schema:
+          description: Session identifier, e.g. project-1.
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryEvidence'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+      summary: Register and execute a controller-authorized test, review or delivery
+        decision
+      tags:
+      - sessions
   /api/v1/sessions/{sessionId}/exit-agent:
     post:
       operationId: exitAgent
@@ -17450,6 +17534,106 @@ components:
       required:
       - ok
       - sessionId
+      type: object
+    DeliveryEvidence:
+      properties:
+        completedAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        createdAt:
+          format: date-time
+          type: string
+        current:
+          type: boolean
+        id:
+          type: string
+        projectId:
+          type: string
+        request:
+          $ref: '#/components/schemas/DeliveryRequest'
+        result:
+          $ref: '#/components/schemas/DeliveryResult'
+        workerId:
+          type: string
+        workerPath:
+          type: string
+      required:
+      - current
+      - id
+      - projectId
+      - workerId
+      - workerPath
+      - request
+      - createdAt
+      type: object
+    DeliveryEvidenceResponse:
+      properties:
+        evidence:
+          items:
+            $ref: '#/components/schemas/DeliveryEvidence'
+          type: array
+      required:
+      - evidence
+      type: object
+    DeliveryRequest:
+      properties:
+        baseSha:
+          type: string
+        command:
+          items:
+            type: string
+          type: array
+        control:
+          $ref: '#/components/schemas/ControlClaim'
+        headSha:
+          type: string
+        id:
+          type: string
+        kind:
+          enum:
+          - test
+          - review
+          - verdict
+          - rework
+          - accept
+          type: string
+        message:
+          type: string
+        reviewId:
+          type: string
+        testId:
+          type: string
+      required:
+      - id
+      - control
+      - kind
+      - baseSha
+      - headSha
+      type: object
+    DeliveryResult:
+      properties:
+        delivered:
+          type: boolean
+        error:
+          type: string
+        exitCode:
+          type:
+          - "null"
+          - integer
+        messageId:
+          type: string
+        output:
+          type: string
+        reviewerId:
+          type: string
+        reviewerPath:
+          type: string
+        truncated:
+          type: boolean
+        verdict:
+          type: string
       type: object
     DesktopArtifactLocationResponse:
       properties:

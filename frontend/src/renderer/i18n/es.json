@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Controlador Codex",
+	"projectControl.description": "Los nuevos requisitos llegan al controlador actual. Pueden ejecutarse dos agentes DSH a la vez. Cambiar de controlador conserva las tareas existentes.",
+	"projectControl.takeInternal": "Usar Codex interno",
+	"projectControl.takeExternal": "Usar Codex externo",
 	"sideChat.closingTab": "Cerrando",
 	"sideChat.closing": "Cerrando chat lateral. Desaparecerá cuando se confirme el cierre.",
 	"sideChat.retryClose": "Reintentar cierre",

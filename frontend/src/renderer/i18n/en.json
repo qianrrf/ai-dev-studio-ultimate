@@ -1,4 +1,8 @@
 {
+	"projectControl.title": "Codex controller",
+	"projectControl.description": "New requirements go to the current controller. Up to two DSH workers run at once. Switching controllers preserves existing tasks.",
+	"projectControl.takeInternal": "Use internal Codex",
+	"projectControl.takeExternal": "Use external Codex",
 	"sideChat.closingTab": "Closing",
 	"sideChat.closing": "Closing side chat. It will disappear once shutdown is confirmed.",
 	"sideChat.retryClose": "Retry close",

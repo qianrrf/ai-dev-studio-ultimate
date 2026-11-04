@@ -614,6 +614,20 @@ type ProjectControl struct {
 	UpdatedAt time.Time
 }
 
+type ProjectDeliveryEvidence struct {
+	ID          string
+	ProjectID   string
+	WorkerID    string
+	WorkerPath  string
+	OwnerID     string
+	Revision    int64
+	Kind        string
+	RequestJson string
+	ResultJson  sql.NullString
+	CreatedAt   time.Time
+	CompletedAt sql.NullTime
+}
+
 type ProjectDispatch struct {
 	RequestID string
 	ProjectID string

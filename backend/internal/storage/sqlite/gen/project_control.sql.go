@@ -36,10 +36,11 @@ func (q *Queries) CompleteAutomationIntake(ctx context.Context, arg CompleteAuto
 
 const countProjectExecutingWorkers = `-- name: CountProjectExecutingWorkers :one
 SELECT count(*) FROM sessions
-WHERE project_id = ? AND kind = 'worker' AND read_only = 0 AND is_task_preparation = 0
+WHERE sessions.project_id = ? AND sessions.kind = 'worker' AND read_only = 0 AND is_task_preparation = 0
 AND is_terminated = 0 AND (provision_state = 'provisioning' OR activity_state IN ('active', 'waiting_input', 'blocked')
 OR (client_request_id <> '' AND client_request_committed = 0)
-OR EXISTS (SELECT 1 FROM conversation_turns t WHERE t.handled_by_session_id = sessions.id AND t.state IN ('queued', 'running')))
+OR EXISTS (SELECT 1 FROM conversation_turns t WHERE t.handled_by_session_id = sessions.id AND t.state IN ('queued', 'running'))
+OR EXISTS (SELECT 1 FROM project_delivery_evidence e WHERE e.worker_id = sessions.id AND e.kind = 'rework' AND e.result_json IS NULL))
 `
 
 func (q *Queries) CountProjectExecutingWorkers(ctx context.Context, projectID *domain.ProjectID) (int64, error) {
@@ -47,6 +48,16 @@ func (q *Queries) CountProjectExecutingWorkers(ctx context.Context, projectID *d
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const disableControlledProjectAutoReview = `-- name: DisableControlledProjectAutoReview :exec
+UPDATE sessions SET auto_review_enabled = 0, reviewer_harness = 'codex'
+WHERE project_id = ? AND (auto_review_enabled <> 0 OR reviewer_harness <> 'codex')
+`
+
+func (q *Queries) DisableControlledProjectAutoReview(ctx context.Context, projectID *domain.ProjectID) error {
+	_, err := q.db.ExecContext(ctx, disableControlledProjectAutoReview, projectID)
+	return err
 }
 
 const getProjectControl = `-- name: GetProjectControl :one

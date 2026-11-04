@@ -58,6 +58,9 @@ func (s *Service) SwitchProvider(ctx context.Context, id domain.SessionID, reque
 // switched for again, so its retry cannot take the chat back from a later
 // switch. switched says the chat is on the target, so a failure is the send's.
 func (s *Service) SwitchProviderAndSend(ctx context.Context, id domain.SessionID, request domain.ProviderSwitchRequest, msg ports.ChatUserMessage) (turn domain.ConversationTurn, switched bool, err error) {
+	if err := s.checkProjectDelivery(ctx, id); err != nil {
+		return turn, false, err
+	}
 	if err := validateFileReferenceContent(msg, string(id)); err != nil {
 		return turn, false, err
 	}
@@ -144,6 +147,23 @@ func (s *Service) messageDelivered(ctx context.Context, id domain.SessionID, cli
 }
 
 func (s *Service) switchProvider(ctx context.Context, id domain.SessionID, request domain.ProviderSwitchRequest) error {
+	if policy, ok := s.sessions.(interface {
+		GetProjectControl(context.Context, domain.ProjectID) (domain.ProjectControl, bool, error)
+	}); ok {
+		record, found, err := s.sessions.GetSession(ctx, id)
+		if err != nil {
+			return err
+		}
+		if found && record.ProjectID != "" {
+			_, controlled, err := policy.GetProjectControl(ctx, record.ProjectID)
+			if err != nil {
+				return err
+			}
+			if controlled && request.TargetHarness != record.Harness {
+				return domain.ErrProjectControlConflict
+			}
+		}
+	}
 	if request.TargetHarness == "" {
 		return &domain.ProviderSwitchError{Kind: domain.ProviderSwitchRefusalUnsupported, Detail: "target provider is required"}
 	}

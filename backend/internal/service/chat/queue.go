@@ -62,6 +62,9 @@ func (s *Service) EditQueuedTurn(
 	turnID string,
 	edit QueuedMessageEdit,
 ) error {
+	if err := s.checkProjectDelivery(ctx, id); err != nil {
+		return err
+	}
 	delivery, err := queuedEditDelivery(turnID, edit)
 	if err != nil {
 		return err

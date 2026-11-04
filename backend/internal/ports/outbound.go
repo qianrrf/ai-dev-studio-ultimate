@@ -560,9 +560,11 @@ type WorkspaceTaskNamer interface {
 
 // WorkspaceConfig is the spec for creating or restoring a session's workspace.
 type WorkspaceConfig struct {
-	ProjectID domain.ProjectID
-	SessionID domain.SessionID
-	Kind      domain.SessionKind
+	// FixedCommit creates a fresh branch at an immutable commit for independent review.
+	FixedCommit string
+	ProjectID   domain.ProjectID
+	SessionID   domain.SessionID
+	Kind        domain.SessionKind
 	// SessionPrefix is the human-readable project prefix used to name the
 	// orchestrator worktree. Defaults to a truncation of ProjectID when empty.
 	SessionPrefix string

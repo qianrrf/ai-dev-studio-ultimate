@@ -120,6 +120,9 @@ func (s *Service) Steer(
 	id domain.SessionID,
 	msg ports.ChatUserMessage,
 ) (SteerResult, error) {
+	if err := s.checkProjectDelivery(ctx, id); err != nil {
+		return SteerResult{}, err
+	}
 	if strings.TrimSpace(msg.Text) == "" {
 		return SteerResult{}, ErrSteerTextRequired
 	}
@@ -163,6 +166,11 @@ func (s *Service) SteerOrSend(
 	msg ports.ChatUserMessage,
 	recoverOnly bool,
 ) (SteerOrSendResult, error) {
+	if !recoverOnly {
+		if err := s.checkProjectDelivery(ctx, id); err != nil {
+			return SteerOrSendResult{}, err
+		}
+	}
 	if strings.TrimSpace(msg.Text) == "" && !recoverOnly {
 		return SteerOrSendResult{}, ErrSteerTextRequired
 	}
