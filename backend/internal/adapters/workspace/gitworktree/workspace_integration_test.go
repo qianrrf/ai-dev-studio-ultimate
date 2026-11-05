@@ -113,7 +113,7 @@ func testWorkspaceIntegrationChinesePaths(t *testing.T, longRoot bool) {
 	if err := os.Remove(filepath.Join(info.Path, "hook-args.txt")); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(info.Path, "中文 source", strings.Repeat("deep-", 25), "result.txt")
+	file := filepath.Join(info.Path, "中文 source", strings.Repeat("deep-", 40), "result.txt")
 	pathUnits := len(utf16.Encode([]rune(file)))
 	if pathUnits <= 260 {
 		t.Fatalf("fixture must exceed MAX_PATH: %d UTF-16 units", pathUnits)
