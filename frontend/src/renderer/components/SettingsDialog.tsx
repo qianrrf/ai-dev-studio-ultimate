@@ -237,7 +237,7 @@ function useSettingsLayer(settingsModal: SettingsModal | null) {
 		void ensureCodexAccounts([], { includeUsage: true })
 			.then((next) => writeCodexAccounts(queryClient, next, "replace"))
 			.catch(() => undefined);
-		window.setTimeout(() => {
+		const reconcileTimer = window.setTimeout(() => {
 			void ensureCodexAccounts([], {
 				includeUsage: true,
 				forceAuthentication: true,
@@ -250,6 +250,8 @@ function useSettingsLayer(settingsModal: SettingsModal | null) {
 		// page is first drawn, so nothing pops in or flips after it opens.
 		void queryClient.prefetchQuery({ queryKey: mobileStatusQueryKey, queryFn: fetchMobileStatus });
 		void queryClient.prefetchQuery({ queryKey: mobileDevicesQueryKey, queryFn: fetchDevices });
+		// Closing Settings cancels only the delayed refresh, never daemon-owned login work.
+		return () => window.clearTimeout(reconcileTimer);
 	}, [queryClient, settingsModal?.scope]);
 
 	const selectProjectSection = (id: ProjectSettingsSection, navigate = () => projectHistory.visit(id)) => {

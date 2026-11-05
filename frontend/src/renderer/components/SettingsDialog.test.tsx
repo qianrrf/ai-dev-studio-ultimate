@@ -552,6 +552,21 @@ describe("SettingsDialog", () => {
 		expect(postMock.mock.calls.map(([path]) => path)).toEqual(["/api/v1/agents/codex/accounts/ensure"]);
 	});
 
+	it("does not start delayed account reconciliation after Settings closes", async () => {
+		vi.useFakeTimers();
+		try {
+			useUiStore.getState().openGlobalSettings("agents");
+			const view = renderSettingsDialog();
+			expect(postMock).toHaveBeenCalledTimes(1);
+			act(() => useUiStore.getState().closeSettings());
+			await act(() => vi.advanceTimersByTimeAsync(10_000));
+			expect(postMock.mock.calls.map(([path]) => path)).toEqual(["/api/v1/agents/codex/accounts/ensure"]);
+			view.unmount();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("renders inside the page and closes from Escape or Back", async () => {
 		useUiStore.getState().openGlobalSettings("general");
 		renderSettingsDialog();
