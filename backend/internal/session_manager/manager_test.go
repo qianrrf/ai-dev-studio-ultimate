@@ -16,6 +16,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/amp"
@@ -3323,40 +3324,43 @@ func TestSpawn_AfterStartPromptFallsBackWhenReadinessTimesOut(t *testing.T) {
 }
 
 func TestSpawn_AfterStartPromptReservesCallerDeadlineForFallbackDelivery(t *testing.T) {
-	st := newFakeStore()
-	st.projects["mer"] = domain.ProjectRecord{ID: "mer", Config: testRoleAgents()}
-	rt := &fakeRuntime{outputs: []string{"still booting"}}
-	msg := &fakeMessenger{}
-	agent := &recordingAgent{}
-	m := New(Deps{
-		Runtime: rt,
-		Agents: singleAgent{agent: readinessAgent{
-			afterStartAgent: afterStartAgent{recordingAgent: agent},
-			hints: ports.PromptReadinessHints{
-				InitialDelay: time.Second,
-				Patterns:     []string{"Ready..."},
-				PollInterval: time.Millisecond,
-				Timeout:      time.Second,
-			},
-		}},
-		Workspace: &fakeWorkspace{},
-		Store:     st,
-		Messenger: msg,
-		Lifecycle: &fakeLCM{store: st},
-		LookPath:  func(string) (string, error) { return "/bin/true", nil },
-	})
+	// Keep the 100ms request budget independent of Windows scheduler load.
+	synctest.Test(t, func(t *testing.T) {
+		st := newFakeStore()
+		st.projects["mer"] = domain.ProjectRecord{ID: "mer", Config: testRoleAgents()}
+		rt := &fakeRuntime{outputs: []string{"still booting"}}
+		msg := &fakeMessenger{}
+		agent := &recordingAgent{}
+		m := New(Deps{
+			Runtime: rt,
+			Agents: singleAgent{agent: readinessAgent{
+				afterStartAgent: afterStartAgent{recordingAgent: agent},
+				hints: ports.PromptReadinessHints{
+					InitialDelay: time.Second,
+					Patterns:     []string{"Ready..."},
+					PollInterval: time.Millisecond,
+					Timeout:      time.Second,
+				},
+			}},
+			Workspace: &fakeWorkspace{},
+			Store:     st,
+			Messenger: msg,
+			Lifecycle: &fakeLCM{store: st},
+			LookPath:  func(string) (string, error) { return "/bin/true", nil },
+		})
 
-	spawnCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	if _, _, _, err := m.Spawn(spawnCtx, ports.SpawnConfig{ProjectID: "mer", Kind: domain.KindWorker, Prompt: "fix the button"}); err != nil {
-		t.Fatalf("Spawn: %v", err)
-	}
-	if err := spawnCtx.Err(); err != nil {
-		t.Fatalf("spawn exhausted caller deadline before fallback delivery: %v", err)
-	}
-	if len(msg.msgs) != 1 || msg.msgs[0] != "fix the button" {
-		t.Fatalf("delivered prompts = %#v, want fallback prompt delivery", msg.msgs)
-	}
+		spawnCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		if _, _, _, err := m.Spawn(spawnCtx, ports.SpawnConfig{ProjectID: "mer", Kind: domain.KindWorker, Prompt: "fix the button"}); err != nil {
+			t.Fatalf("Spawn: %v", err)
+		}
+		if err := spawnCtx.Err(); err != nil {
+			t.Fatalf("spawn exhausted caller deadline before fallback delivery: %v", err)
+		}
+		if len(msg.msgs) != 1 || msg.msgs[0] != "fix the button" {
+			t.Fatalf("delivered prompts = %#v, want fallback prompt delivery", msg.msgs)
+		}
+	})
 }
 
 func TestPromptReadinessWaitTimeoutCapsNinetySecondsToSixtySecondRequest(t *testing.T) {
