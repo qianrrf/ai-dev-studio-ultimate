@@ -5,6 +5,7 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { rebuild } from "@electron/rebuild";
 import electronPackage from "electron/package.json";
+import electronChecksums from "electron/checksums.json";
 import appPackage from "./package.json";
 import MakerNSIS from "./makers/maker-nsis";
 import MakerDMG, { isSigningConfigured, sealDmg, verifyDmg, verifyMacArtifact } from "./makers/maker-dmg";
@@ -164,6 +165,9 @@ export function macSignOptionsForFile(filePath: string): { entitlements?: string
 const config: ForgeConfig = {
 	packagerConfig: {
 		asar: true,
+		// The pinned Electron npm package supplies the same release checksums,
+		// allowing a cached archive to be verified without another GitHub request.
+		download: { checksums: electronChecksums },
 		// The Vite plugin normally packages only .vite. better-sqlite3 must stay
 		// external so Electron can load its native binary, so include its minimal
 		// runtime dependency tree explicitly; AutoUnpackNativesPlugin then places
