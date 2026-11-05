@@ -1,7 +1,7 @@
 {
 	"name": "ai-dev-studio-ultimate",
 	"productName": "AI Dev Studio Ultimate",
-	"version": "0.1.0-alpha.2",
+	"version": "0.1.0-alpha.3",
 	"private": true,
 	"description": "Local Windows AI development studio with Codex control and DSH workers",
 	"author": "Orchestrator.inc",

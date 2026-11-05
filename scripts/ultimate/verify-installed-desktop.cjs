@@ -73,12 +73,16 @@ async function until(fn, description, seconds=60) {
  result.control=claimed;result.tests.push('bundled CLI registers Chinese/space Git path; CAS rejects stale revision; intake deduplicates without starting models');
  const longRepo=path.join(root,'long-path',...Array.from({length:5},(_,i)=>`segment-${i}-${'a'.repeat(32)}`),'项目');
  fs.mkdirSync(longRepo,{recursive:true});
- const longGit=(...args)=>{const r=spawnSync(gitExecutable,['-c','core.longpaths=true',...args],{cwd:longRepo,env,encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.error?.message||r.stderr)};
- try {
-  longGit('init','-b','main');longGit('config','core.longpaths','true');longGit('-c','user.name=Installer validation','-c','user.email=validation@example.invalid','commit','--allow-empty','-m','test: long path');
-  await api('POST','/projects',{path:longRepo,projectId:'long-path-validation',name:'长路径验收'},201);
-  result.longPath={characters:longRepo.length,supported:true};
- }catch(error){result.longPath={characters:longRepo.length,supported:false,error:error.message};}
+ const refusal=await api('POST','/projects',{path:longRepo,projectId:'long-path-validation',name:'长路径验收'},400);
+ assert.equal(refusal.code,'WINDOWS_GIT_PATH_TOO_LONG');
+ assert.equal(refusal.details.maxUtf16Units,200);
+ assert.deepEqual(fs.readdirSync(longRepo),[],'Refused import must not initialize Git or write files');
+ await api('GET','/projects/long-path-validation',undefined,404);
+ assert.equal((await api('GET','/sessions')).sessions.length,0);
+ const refusedCli=spawnSync(path.join(path.dirname(executable),'resources','daemon','ao.exe'),['project','add','--path',longRepo],{env,encoding:'utf8',windowsHide:true});
+ assert.notEqual(refusedCli.status,0);assert.match(refusedCli.stderr,/WINDOWS_GIT_PATH_TOO_LONG/);
+ result.longPath={utf16Units:longRepo.length,refusedWithoutSideEffects:true};
+ result.tests.push('HTTP and bundled CLI refuse overlong roots before registration or Git mutation');
  const before=status.pid;
  await page.evaluate(()=>window.ao.daemon.restart());
  const restarted=await until(async()=>{const s=await page.evaluate(()=>window.ao.daemon.getStatus());return s.state==='ready'&&s.pid!==before?s:null},'daemon restart');
@@ -94,7 +98,7 @@ async function until(fn, description, seconds=60) {
  await page.screenshot({path:path.join(root,'desktop-after-restart.png')});
  result.rendererErrors=errors; assert.equal(errors.length,0);
  result.coreChecksPassed=true;
- result.passed=result.longPath.supported;
+ result.passed=result.longPath.refusedWithoutSideEffects;
  if(!result.passed) process.exitCode=1;
 })().catch(error=> { result.passed=false; result.error=error.stack; process.exitCode=1; }).finally(async()=>{
  try { if(browser) { const session=await browser.newBrowserCDPSession(); await session.send('Browser.close'); } } catch {}

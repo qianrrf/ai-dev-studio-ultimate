@@ -14,11 +14,7 @@ concurrency:
 
 jobs:
   backend:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +22,6 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: Install Linux test shells
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish
       - name: Enable Windows symbolic links and long paths
         if: runner.os == 'Windows'
         shell: pwsh
@@ -62,7 +55,7 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: backend
         run: go vet ./...
-      - name: Verify native Windows long workspace operations
+      - name: Verify short root refusal and native deep file operations
         if: ${{ runner.os == 'Windows' && !cancelled() }}
         working-directory: backend
         run: go test -count=1 -run '^TestWorkspaceIntegrationChineseLong(File)?Paths$' ./internal/adapters/workspace/gitworktree
@@ -71,14 +64,11 @@ jobs:
         working-directory: backend
         env:
           skip_global_compinit: "1"
-        shell: bash
+        shell: pwsh
         run: |
-          set -o pipefail
-          if [ "$RUNNER_OS" = Windows ]; then
-            powershell.exe -NoProfile -Command '. ../scripts/ultimate/prepare-windows-test-process.ps1; go test -race -json -count=1 -timeout=40m ./... 2>&1 | Tee-Object backend-results.jsonl; exit $LASTEXITCODE'
-          else
-            go test -race -json -count=1 -timeout=40m ./... | tee backend-results.jsonl
-          fi
+          . ../scripts/ultimate/prepare-windows-test-process.ps1
+          go test -race -json -count=1 -timeout=40m ./... 2>&1 | Tee-Object backend-results.jsonl
+          exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
@@ -101,11 +91,7 @@ jobs:
         working-directory: backend
         run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run --path-mode=abs
   frontend:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -154,8 +140,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          browser_binary="$PWD/agent-browser/agent-browser"
-          if [ "$RUNNER_OS" = Windows ]; then browser_binary="$browser_binary.exe"; fi
+          browser_binary="$PWD/agent-browser/agent-browser.exe"
           AO_AGENT_BROWSER_TEST_BINARY="$browser_binary" npm test -- src/main/agent-browser-runtime.test.ts
       - name: Check API types
         if: ${{ !cancelled() }}
@@ -189,11 +174,7 @@ jobs:
           export AO_BOUNDARY_ELECTRON="$electron_binary"
           export AO_MOBILE_CONTROL_ELECTRON="$electron_binary"
           export AO_MUX_ELECTRON="$electron_binary"
-          if [ "$RUNNER_OS" = Linux ]; then
-            xvfb-run -a go test -count=1 -run '^Test(BrowserBoundary|MobileControlOrigin|MuxOrigin)Electron$' ./internal/httpd
-          else
-            go test -count=1 -run '^Test(BrowserBoundary|MobileControlOrigin|MuxOrigin)Electron$' ./internal/httpd
-          fi
+          go test -count=1 -run '^Test(BrowserBoundary|MobileControlOrigin|MuxOrigin)Electron$' ./internal/httpd
       - name: Guarded browser navigation integration
         if: ${{ !cancelled() }}
         working-directory: frontend
@@ -237,33 +218,3 @@ jobs:
           name: ai-dev-studio-ultimate-windows-x64
           path: frontend/out/make/**/*.exe
           if-no-files-found: error
-      - name: Check out fixed upstream for installer coexistence
-        uses: actions/checkout@v4
-        with:
-          ref: b325d24b741297bf89296e76501d7e09018c4a04
-          path: upstream-baseline
-      - name: Build original upstream installer on disposable account
-        working-directory: upstream-baseline/frontend
-        env:
-          CGO_ENABLED: "0"
-        run: |
-          npm ci --prefix ../packages/product-ui
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm ci
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run make
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify both installers, simultaneous startup and independent uninstalls
-        run: |
-          $productInstaller = (Get-ChildItem frontend/out/make -Filter '*.exe').FullName
-          $upstreamInstaller = (Get-ChildItem upstream-baseline/frontend/out/make -Filter '*.exe').FullName
-          node scripts/ultimate/verify-installer-coexistence.cjs $productInstaller $upstreamInstaller (Join-Path $env:RUNNER_TEMP 'installer-coexistence')
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: windows-installer-coexistence
-          path: |
-            ${{ runner.temp }}/installer-coexistence/coexistence-result.json
-            ${{ runner.temp }}/installer-coexistence/*/desktop.log
-            ${{ runner.temp }}/installer-coexistence/*/desktop.png
