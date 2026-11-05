@@ -100,7 +100,19 @@ DSH 返回的原生请求 ID：`1d601ea4-8fa7-4338-bb16-10dcf4a2f7be`、`cd258c1
 
 1. **DSH 账户返回余额不足。** 当前版本双 Worker、后续独立审查/返工/正式验收、外部主控完整接管闭环不能验收；停止无效重试。
 2. **GitHub 连接重置/超时。** 本轮新提交无法推送，远端 Windows 验证及既有专用私有仓库 `qianrrf/aidsu-validation-20261104` 的 PR/原生 Reviewer 复测未完成。未修改现有凭据或向上游发送内容。
-3. **本机无符号链接创建权限。** 当前普通进程无 SeCreateSymbolicLinkPrivilege，Windows Developer Mode 也未启用；安全边界用例真实失败，不能删断言或改为 skip。恢复测试前提后需重跑完整套件。
+
+开发者模式已在本机启用并完成最终复测。此前因符号链接权限产生的失败已消失；当前 Windows 本地必需测试不再受该问题阻塞。远端 CI 仍未取得，不能用本机结果替代远端验证。
+
+## 开发者模式复测收据（文档提交 5f9502385）
+
+在不修改源码的情况下，使用开发者模式和固定工具链重跑最终提交的 Windows 必需套件：
+
+- 前端完整套件：10,953 通过、0 失败、15 项平台范围 pending；证据 `frontend-final-devmode-5f9502385-summary.json`。
+- 后端完整 race：16,417 通过、0 失败、316 项平台/可选 skipped、0 数据竞争告警；证据 `backend-race-devmode-5f9502385-summary.json`。
+- TypeScript、e2e 类型、Go build、Go vet、golangci-lint、OpenAPI/sqlc 生成一致性、Renderer、Electron 边界和浏览器兼容检查均退出码 0；证据文件以 `*-final-5f9502385` 命名。
+- POSIX、macOS、旧 Connect Mobile 及未满足可选运行时前提的项目继续单独列为范围外或未执行，不伪装成 Windows 通过。
+
+该复测只更新验收证据和文档。安装器仍准确对应源码提交 `a04bbdd40`，因此无需因文档提交重新打包；资格仍保持 `not-accepted`，直到 DSH、远端 GitHub 检查、双入口真实闭环和 PR Reviewer 门槛完成。
 
 此前缺失的 GCC 已补齐：官方 MSYS2 20260927 基础包的签名经官方文档指纹 `0EBF782C5D53F7E5FB02A66746BD761F7A49B0EC` 校验通过，随后 pacman 按正常签名校验安装 UCRT64 GCC 16.2.0-6。工具链仅在本轮测试进程 PATH/CC 中启用，没有改全局 PATH 或产品依赖；下载、签名及安装日志保留。原先 `gcc not found` 的记录是修复前结果，不能继续作为当前阻塞。
 
