@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { matchesAppShortcut, shortcutYieldsToTerminal, type AppShortcutEvent, type AppShortcutId } from "../../shared/shortcuts";
 import { aoBridge } from "../lib/bridge";
 import { isMacPlatform } from "../lib/platform";
@@ -49,7 +49,7 @@ export function useAppShortcut(
 ): void {
 	const handlerRef = useRef(handler);
 	handlerRef.current = handler;
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (!enabled) return;
 		const listener = (event: AppShortcutEvent) => {
 			if (event.id === id) handlerRef.current(event);
@@ -61,7 +61,7 @@ export function useAppShortcut(
 			unsubscribe();
 		};
 	}, [id, enabled]);
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (!enabled) return;
 		const isMac = isMacPlatform();
 		const onKeyDown = (event: KeyboardEvent) => {
