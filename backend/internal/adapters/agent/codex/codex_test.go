@@ -589,9 +589,10 @@ func TestGetLaunchCommandMapsApprovalModes(t *testing.T) {
 		notExpected string
 	}{
 		{
-			name:       "default",
-			permission: ports.PermissionModeDefault,
-			want:       []string{"--dangerously-bypass-approvals-and-sandbox"},
+			name:        "default",
+			permission:  ports.PermissionModeDefault,
+			want:        []string{"--ask-for-approval", "untrusted", "--sandbox", "workspace-write", "-c", `approvals_reviewer="user"`},
+			notExpected: "--dangerously-bypass-approvals-and-sandbox",
 		},
 		{
 			name:        "accept-edits",
@@ -611,9 +612,10 @@ func TestGetLaunchCommandMapsApprovalModes(t *testing.T) {
 			want:       []string{"--dangerously-bypass-approvals-and-sandbox"},
 		},
 		{
-			name:       "empty",
-			permission: "",
-			want:       []string{"--dangerously-bypass-approvals-and-sandbox"},
+			name:        "empty",
+			permission:  "",
+			want:        []string{"--ask-for-approval", "untrusted", "--sandbox", "workspace-write", "-c", `approvals_reviewer="user"`},
+			notExpected: "--dangerously-bypass-approvals-and-sandbox",
 		},
 	}
 

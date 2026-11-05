@@ -69,7 +69,7 @@ describe("project permission persistence", () => {
 });
 
 
-it("sends source harness context so the daemon can preserve Full access across providers", async () => {
+it("sends source harness context with the explicit approval choice", async () => {
 	patch.mockResolvedValue({});
 	const { result } = setup("codex");
 	await act(async () => { await result.current.remember("default"); });
@@ -78,11 +78,11 @@ it("sends source harness context so the daemon can preserve Full access across p
 	});
 });
 
-it("reads a Codex Full access write as the bypass mode the project stores", async () => {
-	patch.mockImplementation(async () => { stored = "bypass-permissions"; return {}; });
+it("keeps a Codex manual default write as default", async () => {
+	patch.mockImplementation(async () => { stored = "default"; return {}; });
 	const { result } = setup("codex");
 	await act(async () => { await result.current.remember("default"); });
-	await waitFor(() => expect(result.current.savedMode).toBe("bypass-permissions"));
+	await waitFor(() => expect(result.current.savedMode).toBe("default"));
 });
 
 it("shows a mode changed elsewhere once the project refetches", async () => {

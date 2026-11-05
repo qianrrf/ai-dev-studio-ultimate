@@ -1113,13 +1113,7 @@ func (m *Service) SetPermissions(ctx context.Context, id domain.ProjectID, in Se
 	if in.SourceHarness != "" && !in.SourceHarness.IsKnown() {
 		return Project{}, apierr.Invalid("INVALID_HARNESS", "Unknown source harness", nil)
 	}
-	// Codex default grants full access; remember its portable equivalent so
-	// another harness does not interpret it as its own manual baseline.
-	permissions := in.Permissions
-	if in.SourceHarness == domain.HarnessCodex && permissions == domain.PermissionModeDefault {
-		permissions = domain.PermissionModeBypassPermissions
-	}
-	return m.storePermissions(ctx, id, permissions)
+	return m.storePermissions(ctx, id, in.Permissions)
 }
 
 // ForgetPermissions clears the remembered approval policy. Existing sessions keep theirs.

@@ -202,8 +202,10 @@ func CodexPermissionArgs(policy PermissionPolicy) []string {
 		return []string{"--ask-for-approval", "on-request"}
 	case PermissionAuto:
 		return []string{"--ask-for-approval", "on-request", "-c", `approvals_reviewer="auto_review"`}
-	default:
+	case PermissionBypassPermissions:
 		return []string{"--dangerously-bypass-approvals-and-sandbox"}
+	default:
+		return []string{"--ask-for-approval", "untrusted", "--sandbox", "workspace-write", "-c", `approvals_reviewer="user"`}
 	}
 }
 

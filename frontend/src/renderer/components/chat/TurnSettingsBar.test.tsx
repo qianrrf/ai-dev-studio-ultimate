@@ -826,7 +826,7 @@ describe("ACP session config options", () => {
 		expect(onChange).toHaveBeenCalledWith("model", { value: "sonnet" });
 	});
 
-	it("shows Codex's three native permission choices", async () => {
+	it("shows Codex's manual default and explicit bypass choices", async () => {
 		const user = userEvent.setup();
 		const onChange = vi.fn();
 		render(
@@ -839,7 +839,7 @@ describe("ACP session config options", () => {
 		);
 
 		expect(screen.getByRole("button", { name: "Approval policy for the next turn" })).toHaveTextContent(
-			"Full access",
+			"Manual approvals",
 		);
 		await user.click(screen.getByRole("button", { name: "Approval policy for the next turn" }));
 		expect(screen.getByRole("menuitemradio", { name: "Ask for approval" })).toBeInTheDocument();
@@ -848,7 +848,7 @@ describe("ACP session config options", () => {
 		expect(screen.queryByRole("menuitemradio", { name: "Default approvals" })).not.toBeInTheDocument();
 		expect(screen.queryByRole("menuitemradio", { name: "Accept edits" })).not.toBeInTheDocument();
 		expect(screen.queryByRole("menuitemradio", { name: "Auto-approve" })).not.toBeInTheDocument();
-		expect(screen.getByRole("menuitemradio", { name: "Full access" })).toBeInTheDocument();
+		expect(screen.getByRole("menuitemradio", { name: "Manual approvals" })).toBeInTheDocument();
 
 		await user.click(screen.getByRole("menuitemradio", { name: "Approve for me" }));
 		expect(onChange).toHaveBeenCalledWith({ approvalMode: "auto" }, "approvalMode");
@@ -924,7 +924,7 @@ describe("ACP session config options", () => {
 			screen.getByRole("button", { name: "Model and reasoning effort for the next turn" }),
 		).toHaveTextContent("gpt-5.6-terra High");
 		expect(screen.getByRole("button", { name: "Approval policy for the next turn" })).toHaveTextContent(
-			"Full access",
+			"Manual approvals",
 		);
 	});
 
@@ -941,7 +941,7 @@ describe("ACP session config options", () => {
 			"Bypass permissions",
 		);
 	});
-	it("distinguishes Codex bypass permissions from its default full-access posture", () => {
+	it("distinguishes Codex bypass permissions from its manual default", () => {
 		render(
 			<TurnSettingsBar
 				harness="codex"
@@ -1007,7 +1007,7 @@ describe("remember project permissions", () => {
 		const { rerender } = render(<TurnSettingsBar models={[]} harness="codex"
 			settings={{ approvalMode: "auto" }} onChange={onChange} onRememberPermissions={remember} />);
 		await user.click(screen.getByRole("button", { name: "Approval policy for the next turn" }));
-		await user.click(screen.getByRole("menuitemradio", { name: "Full access" }));
+		await user.click(screen.getByRole("menuitemradio", { name: "Manual approvals" }));
 		expect(onChange).toHaveBeenCalledWith({ approvalMode: "default" }, "approvalMode");
 		expect(remember).not.toHaveBeenCalled();
 		rerender(<TurnSettingsBar models={[]} harness="codex"
@@ -1031,12 +1031,12 @@ describe("remember project permissions", () => {
 		expect(screen.queryByRole("status")).not.toBeInTheDocument();
 	});
 
-	it("reads Codex Full access as remembered when the project stores it as bypass", async () => {
+	it("does not confuse manual Codex approvals with remembered bypass", async () => {
 		const user = userEvent.setup();
 		render(<TurnSettingsBar models={[]} harness="codex" settings={{ approvalMode: "default" }}
 			onChange={vi.fn()} onRememberPermissions={vi.fn()} rememberedPermissionMode="bypass-permissions" />);
 		await user.click(screen.getByRole("button", { name: "Approval policy for the next turn" }));
-		expect(screen.getByRole("switch", { name: "Remember for this project" })).toBeChecked();
+		expect(screen.getByRole("switch", { name: "Remember for this project" })).not.toBeChecked();
 	});
 
 	it("remembers a provider choice only through its daemon-supplied permission mapping", async () => {

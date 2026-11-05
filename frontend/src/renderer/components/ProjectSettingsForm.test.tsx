@@ -304,7 +304,7 @@ describe("ProjectSettingsForm", () => {
 			),
 		);
 		expect(ensureAgentReadinessMock).toHaveBeenCalledWith({ hostId: undefined });
-		expect(screen.getByRole("button", { name: "Worker approval" })).toHaveTextContent("Auto");
+		expect(screen.getByRole("button", { name: "Worker approval" })).toHaveTextContent("Use agent permissions");
 		expect(screen.queryByRole("button", { name: "Refresh agents" })).not.toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: "Refresh worker model list" })).not.toBeInTheDocument();
 		expect(screen.queryByRole("button", { name: "Refresh orchestrator model list" })).not.toBeInTheDocument();
@@ -544,11 +544,11 @@ describe("ProjectSettingsForm", () => {
 		renderSettings("proj-1", undefined, "agents");
 		const worker = await screen.findByRole("button", { name: "Worker approval" });
 		const orchestrator = screen.getByRole("button", { name: "Orchestrator approval" });
-		expect(worker).toHaveTextContent("Bypass permissions");
+		expect(worker).toHaveTextContent("Use agent permissions");
 		expect(orchestrator).toHaveTextContent("Use Claude permissions");
 		await userEvent.click(worker);
 		expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-			"Auto", "Accept edits", "Bypass permissions",
+			"Use agent permissions", "Auto", "Accept edits", "Bypass permissions",
 		]);
 		await userEvent.keyboard("{Escape}");
 		await userEvent.click(orchestrator);
@@ -1642,7 +1642,7 @@ describe("ProjectSettingsForm", () => {
 			</QueryClientProvider>,
 		);
 		const approval = await screen.findByRole("button", { name: "Reviewer approval" });
-		expect(approval).toHaveTextContent("Auto");
+		expect(approval).toHaveTextContent("Use agent permissions");
 		await chooseOption(approval, "Accept edits");
 		submitSettings();
 		await waitFor(() => expect(putMock).toHaveBeenCalledTimes(1));

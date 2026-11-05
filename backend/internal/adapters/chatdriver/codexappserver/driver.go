@@ -765,18 +765,17 @@ func initializeConnection(ctx context.Context, connection *conn) error {
 // approvalSettings maps AO's existing per-session permission mode onto Codex's
 // approval policy and sandbox.
 //
-// The default matches what AO already passes a Codex TUI session
-// (--dangerously-bypass-approvals-and-sandbox): AO sessions run in isolated
-// worktrees and are expected to work without prompting. Chat does not quietly
-// become stricter than the terminal path for the same setting.
+// Full access requires an explicit bypass choice; a worktree is not a sandbox.
 func approvalSettings(mode ports.PermissionMode) (policy, sandbox string) {
 	switch ports.NormalizePermissionMode(mode) {
+	case ports.PermissionModeBypassPermissions:
+		return "never", "danger-full-access"
 	case ports.PermissionModeAcceptEdits, ports.PermissionModeAuto:
 		// on-request lets the provider decide when to ask; workspace-write keeps
 		// edits inside the worktree.
 		return "on-request", "workspace-write"
 	default:
-		return "never", "danger-full-access"
+		return "untrusted", "workspace-write"
 	}
 }
 
@@ -791,7 +790,7 @@ func approvalReviewer(mode ports.PermissionMode) string {
 }
 
 // SandboxAllowsNetwork reports whether this thread's agent can reach the
-// network. Codex's workspace-write sandbox, used for accept-edits and auto, has
+// network. Codex's workspace-write sandbox, used for manual, accept-edits and auto, has
 // no network (AO never grants it), while full access and the read-only
 // reviewer sandbox do.
 func (c *conversation) SandboxAllowsNetwork(turnMode ports.PermissionMode) bool {

@@ -60,11 +60,10 @@ export function useRememberProjectPermissions(projectId: string, sourceHarness?:
 	const role = kind === "orchestrator" ? config?.orchestrator : config?.worker;
 	const stored = (role?.agentConfig?.permissions || config?.agentConfig?.permissions || undefined) as ApprovalMode | undefined;
 	// The last write shows until the refetched project catches up, then the project
-	// wins again, so a change made in project settings shows here too. The daemon
-	// stores Codex's default as Full access, so the saved mode reads the same for every agent.
+	// wins again, so a change made in project settings shows here too.
 	const written = mutation.variables;
 	const savedMode = belongsToProject && mutation.isSuccess && written && project.dataUpdatedAt < mutation.submittedAt
-		? written.sourceHarness === "codex" && written.permissions === "default" ? "bypass-permissions" : written.permissions ?? undefined
+		? written.permissions ?? undefined
 		: stored;
 	return {
 		remember,

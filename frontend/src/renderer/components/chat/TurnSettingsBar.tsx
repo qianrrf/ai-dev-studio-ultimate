@@ -80,11 +80,8 @@ const HERMES_APPROVAL_COPY: Record<ApprovalMode, { label: string; description: s
 	},
 };
 
-// Codex has three distinct permission profiles. Its default is already full
-// access in AO's isolated worktree posture, so expose it as that rather than a
-// fourth, ambiguous "default" option.
 const CODEX_APPROVAL_COPY: Record<ApprovalMode, { label: string; description: string }> = {
-	default: { label: "Full access", description: "Edits files and runs commands without asking" },
+	default: { label: "Manual approvals", description: "Asks before commands outside the trusted read-only set; confines writes to the workspace" },
 	"accept-edits": { label: "Ask for approval", description: "Asks before edits and commands that need it" },
 	auto: { label: "Approve for me", description: "Only asks about actions detected as potentially unsafe" },
 	"bypass-permissions": { label: "Bypass permissions", description: "Never asks before acting" },
@@ -300,11 +297,7 @@ export function TurnSettingsBar({
 	const rememberMode = modeOption
 		? modeOption.choices.find((choice) => choice.value === modeOption.currentValue)?.permissionMode
 		: settings.approvalMode ?? "default";
-	// Codex's default is Full access, which the project stores as bypass.
-	const remembered = rememberMode !== undefined && rememberedPermissionMode !== undefined && (
-		rememberedPermissionMode === rememberMode ||
-		(harness === "codex" && rememberMode === "default" && rememberedPermissionMode === "bypass-permissions")
-	);
+	const remembered = rememberMode !== undefined && rememberedPermissionMode === rememberMode;
 	const rememberAction = onRememberPermissions && rememberMode && !planning ? (
 		<ToggleRow
 			label="Remember for this project"
@@ -1410,7 +1403,7 @@ async function toggleConfigOption(
 	await pending;
 }
 
-/** Codex names its modes differently: its default has a free hand and its accept-edits asks first. */
+/** Codex's manual default and explicit bypass must stay distinct in the picker. */
 function permissionLook(harness: string | undefined, mode: ApprovalMode): ApprovalMode {
 	if (harness !== "codex") return mode;
 	return mode === "default" ? "bypass-permissions" : mode === "accept-edits" ? "default" : mode;

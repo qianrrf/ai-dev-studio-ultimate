@@ -284,9 +284,9 @@ func TestStartCompletesHandshakeAndOpensThread(t *testing.T) {
 	if _, ok := rawParams["reasoningEffort"]; ok {
 		t.Fatal("thread/start sent unsupported top-level reasoningEffort")
 	}
-	// Default permissions must match what AO already gives a Codex TUI session.
-	if params.ApprovalPolicy != "never" || params.Sandbox != "danger-full-access" {
-		t.Errorf("default posture = %q/%q, want never/danger-full-access", params.ApprovalPolicy, params.Sandbox)
+	// Default permissions preserve manual approval and workspace confinement.
+	if params.ApprovalPolicy != "untrusted" || params.Sandbox != "workspace-write" {
+		t.Errorf("default posture = %q/%q, want untrusted/workspace-write", params.ApprovalPolicy, params.Sandbox)
 	}
 }
 
@@ -1187,11 +1187,11 @@ func TestSandboxAllowsNetworkFollowsTheCodexSandbox(t *testing.T) {
 		turnMode       ports.PermissionMode
 		want           bool
 	}{
-		{"full access at launch", false, false, ports.PermissionModeDefault, "", true},
+		{"manual at launch", false, false, ports.PermissionModeDefault, "", false},
 		{"accept edits at launch", false, false, ports.PermissionModeAcceptEdits, "", false},
 		{"auto at launch", false, false, ports.PermissionModeAuto, "", false},
-		{"turn narrows full access", false, false, ports.PermissionModeDefault, ports.PermissionModeAcceptEdits, false},
-		{"turn widens accept edits", false, false, ports.PermissionModeAcceptEdits, ports.PermissionModeDefault, true},
+		{"turn narrows full access", false, false, ports.PermissionModeBypassPermissions, ports.PermissionModeAcceptEdits, false},
+		{"turn widens accept edits", false, false, ports.PermissionModeAcceptEdits, ports.PermissionModeBypassPermissions, true},
 		{"read-only reviewer", true, false, ports.PermissionModeAcceptEdits, "", true},
 		{"read-only background", true, true, ports.PermissionModeAcceptEdits, "", false},
 		{"background cannot widen access", true, true, ports.PermissionModeAcceptEdits, ports.PermissionModeBypassPermissions, false},
@@ -1209,11 +1209,11 @@ func TestApprovalSettingsMirrorTUIPosture(t *testing.T) {
 		mode                      ports.PermissionMode
 		policy, sandbox, reviewer string
 	}{
-		{false, ports.PermissionModeDefault, "never", "danger-full-access", "user"},
+		{false, ports.PermissionModeDefault, "untrusted", "workspace-write", "user"},
 		{false, ports.PermissionModeBypassPermissions, "never", "danger-full-access", "user"},
 		{false, ports.PermissionModeAcceptEdits, "on-request", "workspace-write", "user"},
 		{false, ports.PermissionModeAuto, "on-request", "workspace-write", "auto_review"},
-		{false, ports.PermissionMode("nonsense"), "never", "danger-full-access", "user"},
+		{false, ports.PermissionMode("nonsense"), "untrusted", "workspace-write", "user"},
 		{true, ports.PermissionModeAuto, "never", "read-only", "user"},
 	} {
 		policy, sandbox, reviewer := launchApprovalSettings(tc.mode, tc.readOnly)
