@@ -48,7 +48,7 @@ Windows 首版根目录上限是 **200 个 UTF-16 单位**，不是字符数或�
 
 ## 真实模型证据与额度
 
-累计保守登记 **53/60 回合**，剩余最多 7 回合；失败、未发起的预留 Reviewer 45/46，以及本轮未成功启动的 DSH Worker A 尝试均计入，不删除历史或释放已计额度。账本位于 `validation/m3-lab/model-rounds.jsonl`。未充值、未切换账户、未切换官方 OAuth。
+累计保守登记 **59/60 回合**，剩余最多 1 回合；失败、未发起的预留 Reviewer 45/46、桥接器预算拒绝以及本轮各 Worker 尝试均计入，不删除历史或释放已计额度。账本位于 `validation/m3-lab/model-rounds.jsonl`。未切换账户、未切换官方 OAuth。
 
 | 项目 | 观察结果 | 证据 |
 |---|---|---|
@@ -58,7 +58,14 @@ Windows 首版根目录上限是 **200 个 UTF-16 单位**，不是字符数或�
 | 修复后的取消 | 自动脚本先观察运行中工具及真实 Node PID，再立即重启 Daemon；`a3-recovery-4` 取消返回成功，PID 已消失，超过原等待时间仍无完成文件 | `cancel-atomic-before.json`、`cancel-atomic-recovered.json`、`cancel-atomic-result.json` |
 | 默认审批拒绝 | `a3-recovery-5` 实际产生 pending command approval；通过正式审批接口选择提供的 cancel，turn 中断，目标文件未生成 | `approval-deny-pending.json`、`approval-deny-response.json`、`approval-deny-after.json` |
 | 等待审批时重启 | `a3-recovery-6` 的同一审批 ID 在重启后仍 pending；正式接口拒绝后正确结算，没有写入 | `approval-restart-before.json`、`approval-restart-recovered.json`、`approval-restart-result.json` |
-| 双 DSH Worker | Codex 主控自行派发 `a3-loop-2`/`a3-loop-3`；两者 ACP 连接后均返回 Insufficient Balance，没有代码结果；主控停止，未重试或伪造验收 | `autonomous-state.json`、`a3-loop-1-conversation.json`、各 Worker conversation |
+| 双 DSH Worker | 余额恢复后，`b8dda68e-76a9-47be-a730-3f2d33ab1130` 与 `6a5acbe1-b9d5-4636-8098-afa29b6bc4d3` 同时运行，均成功；独立工作区、测试退出码 0、cleanup 均有证据 | `parallel-1793885023174.json` |
+
+## DSH 恢复后的新增证据
+
+- `b4d535a5-2fd6-44d7-87e2-b5a79eaafc02` 验证余额已恢复：7/7 测试通过、runtime cleanup 已确认，证据为 `first-1793884941053.json`。
+- 两个并发 Worker 在同一时间窗口进入 running 状态并分别完成，证明 `maxConcurrent=2` 和 ACP 连接可用；证据为 `parallel-1793885023174.json`。
+- `9d2caf99-5b04-4ffd-b9c1-ef22d82a1c4e` 与 `6e80b372-b2b9-4bcf-b3f1-f10b685036a9` 完成修改和 4/3 项测试，但 DSH 权限策略只提供文件工具，没有 shell/git，因此没有 commit SHA；该限制已如实记录，不能把工作区 diff 当作已提交 Worker 结果。证据在任务目录下的 `result.json`。
+- 这批任务均运行在合成白名单仓库，不修改产品仓库；源仓库保持干净。
 
 取消修复使用本机 Codex 0.162.1 的 `generate-json-schema --experimental` 确认的 `thread/backgroundTerminals/clean`，按 threadId 清理。工具事件的 processId 不是系统 PID，没有据此批量结束进程。OpenAI 官方文档页获取返回 403，因此协议依据明确限定为已安装版本和真实执行证据。旧 Codex 不支持清理接口时返回失败，不能报告执行进程已结束。
 
@@ -90,7 +97,7 @@ Windows 首版根目录上限是 **200 个 UTF-16 单位**，不是字符数或�
 
 最终前端完整检查采用 `npm test -- --maxWorkers=4 --reporter=json`，未修改超时或断言。此前重测误用了已经重建为 Electron ABI 的打包工作区，产生 39 项额外 ABI 错误；该失败日志 `frontend-final-bounded-2c1ccd6a9.json` 独立保留，未混入最终 Node 测试结论。切回依赖匹配的测试工作区后，`2c1ccd6a9` 完整结果为 10,933 通过、18 权限失败、15 未执行；最终源码增加两项回归后为上表计数。
 
-前端 15 项未执行逐项列于 `frontend-a04bbdd40-summary.json`：3 项条件原生浏览器测试已通过专门执行补测；其余为 1 项 POSIX socket、2 项 POSIX 进程时间、1 项 macOS quarantine、2 项 POSIX shell escaping，以及 6 项旧 Connect Mobile 功能。均未算作 Windows 个人版通过项。后端 362 项未执行的名称和原始原因在 `backend-skipped-a04bbdd40.json`：至少 37 项为缺少符号链接权限，必须保留为未完成；5 项为显式开关控制的真实 DSH 集成测试，当前余额错误也不能算补测成功。其余包括 POSIX fixture、Unix launcher、Homebrew、tmux 及可选运行时前提；3 项 Electron 边界已专门执行，不把其余缺失项笼统计作通过。
+前端 15 项未执行逐项列于 `frontend-a04bbdd40-summary.json`：3 项条件原生浏览器测试已通过专门执行补测；其余为 1 项 POSIX socket、2 项 POSIX 进程时间、1 项 macOS quarantine、2 项 POSIX shell escaping，以及 6 项旧 Connect Mobile 功能。均未算作 Windows 个人版通过项。后端 362 项未执行的名称和原始原因在 `backend-skipped-a04bbdd40.json`：至少 37 项为缺少符号链接权限，已由开发者模式复测覆盖；5 项为显式开关控制的真实 DSH 集成测试，不能用合成桥接器任务替代产品内联调。其余包括 POSIX fixture、Unix launcher、Homebrew、tmux 及可选运行时前提；3 项 Electron 边界已专门执行，不把其余缺失项笼统计作通过。
 
 安装身份自 alpha 2 共存验证后未变，沿用该次两个安装器共存证据，明确属于历史验证。当前候选仍未完成 PR Reviewer、双入口真实完整业务及最终远端检查。
 
@@ -98,8 +105,9 @@ DSH 返回的原生请求 ID：`1d601ea4-8fa7-4338-bb16-10dcf4a2f7be`、`cd258c1
 
 ## 当前硬阻塞
 
-1. **DSH 账户返回余额不足。** 当前版本双 Worker、后续独立审查/返工/正式验收、外部主控完整接管闭环不能验收；停止无效重试。
-2. **GitHub 连接重置/超时。** 本轮新提交无法推送，远端 Windows 验证及既有专用私有仓库 `qianrrf/aidsu-validation-20261104` 的 PR/原生 Reviewer 复测未完成。未修改现有凭据或向上游发送内容。
+1. **GitHub 连接重置/超时。** 本轮新提交无法推送，远端 Windows 验证及既有专用私有仓库 `qianrrf/aidsu-validation-20261104` 的 PR/原生 Reviewer 复测未完成。未修改现有凭据或向上游发送内容。
+2. **正式业务闭环尚未完成。** 本地 DSH 并发已验证，但产品内/外部 Codex 控制权切换、独立 Codex Reviewer、正式验收接口和 PR Reviewer 仍没有当前 alpha.3 证据。
+3. **Worker commit 证据缺失。** 当前 DSH ACP 权限策略没有 shell/git 工具，Worker 只能产生可审查工作区 diff；不能伪造提交，需在具备提交能力的产品 Worker 入口中复测。
 
 开发者模式已在本机启用并完成最终复测。此前因符号链接权限产生的失败已消失；当前 Windows 本地必需测试不再受该问题阻塞。远端 CI 仍未取得，不能用本机结果替代远端验证。
 
@@ -122,10 +130,9 @@ GitHub 最后复查中，`github.com` HTTPS 连接失败、`api.github.com` 12 �
 
 ## 继续执行顺序
 
-1. 恢复本机符号链接测试前提后，重跑完整前后端及 race；保留全部 skipped 清单并逐项判断范围。当前进程未提升，不能直接代替系统安全桌面的人工确认；未尝试绕过该限制。
-2. GitHub 恢复后推送阶段提交，只运行 Windows 验证；下载最终报告，不能借用旧提交的成功结果。
-3. DSH 可执行后，先核对账本剩余额度；在剩余 7 回合内优先跑双入口、双 Worker 和原生 PR Reviewer。不足时明确保留未完成，不能超额调用。
-4. 若修补运行源码，重建新候选，重新关联源码/hash及受影响安装和业务检查。
-5. 只有全部个人版硬门槛满足才更新本报告为验收通过。安装成功、单项通过、旧版闭环均不能替代这一结论。
+1. GitHub 恢复后推送阶段提交，只运行 Windows 验证；下载最终报告，不能借用旧提交的成功结果。
+2. 在最后 1 回合内只执行一个最关键的独立 Reviewer/验收动作；若 GitHub 仍不可达，不再调用模型，保留未完成状态。
+3. 若修补运行源码，重建新候选，重新关联源码/hash及受影响安装和业务检查。
+4. 只有全部个人版硬门槛满足才更新本报告为验收通过。安装成功、单项通过、旧版闭环均不能替代这一结论。
 
 本报告与随包收据均保持“未验收”状态；修复安装成功不代表业务和完整测试已通过。
