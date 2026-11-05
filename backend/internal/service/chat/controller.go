@@ -2612,8 +2612,8 @@ func (c *Controller) Interrupt(ctx context.Context) error {
 		providerTurnID := providerTurnIDs[0]
 		if err := c.conv.Interrupt(ctx, providerTurnID); err != nil &&
 			!errors.Is(err, ports.ErrChatNoActiveTurn) {
-			c.log.Warn("provider interrupt during reconciliation failed",
-				"session", c.sessionID, "turn", providerTurnID, "error", err)
+			c.sendMu.Unlock()
+			return fmt.Errorf("interrupt durable turn %s: %w", providerTurnID, err)
 		}
 		err = c.reconcileDurableTurnsLocked(ctx, providerTurnID, providerTurnIDs, cutoff)
 		c.sendMu.Unlock()

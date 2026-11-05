@@ -701,6 +701,8 @@ func formatTokens(tokens int64) string {
 
 // Interrupt cancels a turn. An empty turn id targets the active one.
 func (c *conversation) Interrupt(ctx context.Context, providerTurnID string) error {
+	c.sendMu.Lock()
+	defer c.sendMu.Unlock()
 	providerTurnID = c.nativeID(providerTurnID)
 	if providerTurnID == "" {
 		c.mu.Lock()
@@ -724,6 +726,13 @@ func (c *conversation) Interrupt(ctx context.Context, providerTurnID string) err
 			return ports.ErrChatNoActiveTurn
 		}
 		return fmt.Errorf("turn/interrupt: %w", err)
+	}
+	// turn/interrupt can leave unified-exec terminals running. Keep dispatch
+	// locked until the native thread cleanup acknowledges the user's brake.
+	if err := c.conn.request(ctx, "thread/backgroundTerminals/clean", map[string]any{
+		"threadId": c.threadID,
+	}, nil); err != nil {
+		return fmt.Errorf("clean interrupted thread terminals: %w", err)
 	}
 	return nil
 }

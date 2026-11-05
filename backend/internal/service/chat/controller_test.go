@@ -6262,6 +6262,30 @@ func TestInterruptReconcilesStaleRunningTurnOnDisk(t *testing.T) {
 	}
 }
 
+type failedInterruptConversation struct{ *fakeConversation }
+
+func (*failedInterruptConversation) Interrupt(context.Context, string) error {
+	return errors.New("native terminal cleanup failed")
+}
+
+func TestInterruptDoesNotSettleDurableWorkWhenProviderCleanupFails(t *testing.T) {
+	h := newHarnessWithConversation(t, &failedInterruptConversation{newFakeConversation()})
+	ctx := context.Background()
+	if err := h.st.AdoptProviderTurn(ctx, h.ctrl.ConversationID(), testSession,
+		h.ctrl.Generation(), "still-running", "provider-running", h.now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.svc.Interrupt(ctx, testSession); err == nil || !strings.Contains(err.Error(), "native terminal cleanup failed") {
+		t.Fatalf("provider cleanup failure hidden: %v", err)
+	}
+	h.awaitSnapshot(t, func(s store.ConversationSnapshot) bool {
+		return len(s.Turns) == 1 && s.Turns[0].State == domain.TurnStateRunning
+	})
+	if hasActivitySignal(h.activity.snapshot(), domain.ActivityIdle, "chat.interrupt.reconciled") {
+		t.Fatal("failed interrupt reported idle")
+	}
+}
+
 // A root and a nested provider turn can both be durably running. The UI renders
 // the oldest visible row first, but clearing only that row would merely reveal a
 // second Working bar. Recovery cancels the visible root and settles the full
