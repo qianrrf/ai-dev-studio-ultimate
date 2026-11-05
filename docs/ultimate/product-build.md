@@ -37,6 +37,9 @@ clean CI entry is `npm run make`. No publishing is part of either command.
 `prepare-notices.mjs` collects license texts from installed, locked dependencies
 before packaging. Build outputs and generated license collections stay out of
 Git. The final artifact must be accompanied by a SHA-256 and its source commit.
+Go sources use `*.go text eol=lf` so Windows checkout does not make goimports
+report every CRLF source file as a formatting failure. Keep this rule even
+when a developer's Git configuration already has `core.autocrlf=false`.
 
 ## Validation status
 
@@ -54,7 +57,8 @@ A generated installer is a candidate, not evidence that every release gate
 has passed. Public releases, signing and automatic update publication are out
 of scope.
 
-The final local candidate, its exact source/hash, installed Electron smoke,
-coexistence and uninstall results are recorded in
-[installer validation](installer-validation.md). See the
+The latest local candidate, its exact source/hash, installed Electron smoke,
+installed lifecycle checks and successful two-installer coexistence results are recorded in
+[alpha 2 acceptance](alpha2-acceptance.md). The older installer-validation file
+describes alpha 1 only. See the
 [Chinese quickstart](quickstart.zh-CN.md) for installation and controller handover.
