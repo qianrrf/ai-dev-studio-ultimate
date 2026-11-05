@@ -21,6 +21,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/gitdefault"
+	"github.com/aoagents/agent-orchestrator/backend/internal/gitpath"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
@@ -197,6 +198,9 @@ func (m *Service) Get(ctx context.Context, id domain.ProjectID) (GetResult, erro
 func (m *Service) Add(ctx context.Context, in AddInput) (Project, error) {
 	path, err := normalizePath(in.Path)
 	if err != nil {
+		return Project{}, err
+	}
+	if err := gitpath.CheckRepository(ctx, path); err != nil {
 		return Project{}, err
 	}
 	id := defaultProjectID(path)
@@ -383,6 +387,9 @@ const (
 func (m *Service) InitializeRepository(ctx context.Context, in InitializeRepositoryInput) (result InitializeRepositoryResult, retErr error) {
 	path, err := normalizePath(in.Path)
 	if err != nil {
+		return InitializeRepositoryResult{}, err
+	}
+	if err := gitpath.CheckRepository(ctx, path); err != nil {
 		return InitializeRepositoryResult{}, err
 	}
 	if err := ensureDirectoryPath(path); err != nil {

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/aoagents/agent-orchestrator/backend/internal/gitpath"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
 	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
 )
@@ -61,6 +62,9 @@ func (m *Service) CheckCloneDestination(ctx context.Context, in CloneInput) (Clo
 		return CloneDestination{}, err
 	}
 	target := filepath.Join(parent, name)
+	if err := gitpath.CheckRepository(ctx, target); err != nil {
+		return CloneDestination{}, err
+	}
 	if err := validateRepositorySetupPathSafety(target); err != nil {
 		return CloneDestination{}, err
 	}
@@ -171,6 +175,12 @@ func (m *Service) cleanupPreparedCloneAfterFailure(ctx context.Context, prepared
 }
 
 func (m *Service) prepareClone(ctx context.Context, in CloneInput) (ClonePreparationResult, error) {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return ClonePreparationResult{}, apierr.Invalid("GIT_CLONE_TIMED_OUT", "Cloning this repository took too long and was stopped.", nil)
+	}
+	if ctx.Err() != nil {
+		return ClonePreparationResult{}, apierr.Invalid("GIT_CLONE_CANCELLED", "Repository cloning was cancelled.", nil)
+	}
 	remoteURL := normalizeCloneURL(in.RemoteURL)
 	repositoryName, err := cloneRepositoryName(remoteURL)
 	if err != nil {
@@ -192,6 +202,14 @@ func (m *Service) prepareClone(ctx context.Context, in CloneInput) (ClonePrepara
 	}
 
 	target := filepath.Join(parent, repositoryName)
+	if err := gitpath.CheckRepository(ctx, target); err != nil {
+		return ClonePreparationResult{}, err
+	}
+	// MkdirTemp appends at most ten decimal digits. Validate its Git root
+	// before creating the parent or starting a clone.
+	if err := gitpath.CheckRepository(ctx, filepath.Join(parent, ".ao-clone-4294967295")); err != nil {
+		return ClonePreparationResult{}, err
+	}
 	if err := validateRepositorySetupPathSafety(target); err != nil {
 		return ClonePreparationResult{}, err
 	}

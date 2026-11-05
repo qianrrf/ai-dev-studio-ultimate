@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/aoagents/agent-orchestrator/backend/internal/gitpath"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	reportsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/report"
 )
@@ -410,6 +411,9 @@ func (s *Service) Start(ctx context.Context, cfg StartConfig) (*Controller, erro
 // startLocked is the launch implementation shared by ordinary starts and the
 // provider-switch saga. Callers must hold the typed controller gate.
 func (s *Service) startLocked(ctx context.Context, cfg StartConfig) (*Controller, error) {
+	if err := gitpath.CheckRepository(ctx, cfg.WorkspacePath); err != nil {
+		return nil, err
+	}
 	owner := conversationOwner(cfg)
 	if cfg.SessionID != "" && s.sessions != nil {
 		rec, found, err := s.sessions.GetSession(ctx, cfg.SessionID)

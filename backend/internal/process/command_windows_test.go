@@ -15,19 +15,15 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func TestGitLongDirectoryAppliesToBothCommandConstructors(t *testing.T) {
+func TestCommandConstructorsPreserveGitDirectoryArguments(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), strings.Repeat("segment", 24), strings.Repeat("nested", 20))
 	for _, name := range []string{"git", "git.exe", "other.exe"} {
 		for _, command := range []*exec.Cmd{
 			Command(name, "-C", dir, "status", "--porcelain"),
 			CommandContext(t.Context(), name, "-C", dir, "status", "--porcelain"),
 		} {
-			wantArgs := []string{name, "status", "--porcelain"}
-			wantDir := dir
-			if name == "other.exe" {
-				wantArgs, wantDir = []string{name, "-C", dir, "status", "--porcelain"}, ""
-			}
-			if command.Dir != wantDir || !reflect.DeepEqual(command.Args, wantArgs) {
+			wantArgs := []string{name, "-C", dir, "status", "--porcelain"}
+			if command.Dir != "" || !reflect.DeepEqual(command.Args, wantArgs) {
 				t.Fatalf("%s: dir=%q args=%q", name, command.Dir, command.Args)
 			}
 		}

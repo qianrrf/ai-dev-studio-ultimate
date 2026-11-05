@@ -16,6 +16,7 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/gitdefault"
+	"github.com/aoagents/agent-orchestrator/backend/internal/gitpath"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
 )
@@ -286,6 +287,13 @@ func (w *Workspace) Create(ctx context.Context, cfg ports.WorkspaceConfig) (port
 	if err != nil {
 		return ports.WorkspaceInfo{}, err
 	}
+	path, err := w.managedPath(cfg)
+	if err != nil {
+		return ports.WorkspaceInfo{}, err
+	}
+	if err := gitpath.CheckWorktree(ctx, repo, path); err != nil {
+		return ports.WorkspaceInfo{}, err
+	}
 	if err := w.enableWorktreeConfig(ctx, repo); err != nil {
 		return ports.WorkspaceInfo{}, err
 	}
@@ -316,10 +324,6 @@ func (w *Workspace) Create(ctx context.Context, cfg ports.WorkspaceConfig) (port
 			}
 			cfg.Branch = fmt.Sprintf("%s-%d", requested, suffix)
 		}
-	}
-	path, err := w.managedPath(cfg)
-	if err != nil {
-		return ports.WorkspaceInfo{}, err
 	}
 	if info, ok, err := w.existingWorktree(ctx, repo, path, cfg); err != nil {
 		return ports.WorkspaceInfo{}, err
@@ -426,9 +430,6 @@ func (w *Workspace) CreateWorkspaceProject(ctx context.Context, cfg ports.Worksp
 	if err != nil {
 		return ports.WorkspaceProjectInfo{}, fmt.Errorf("gitworktree: root repo path: %w", err)
 	}
-	if err := w.enableWorktreeConfig(ctx, rootRepo); err != nil {
-		return ports.WorkspaceProjectInfo{}, err
-	}
 	rootPath, err := w.managedPath(ports.WorkspaceConfig{
 		ProjectID:     cfg.ProjectID,
 		SessionID:     cfg.SessionID,
@@ -451,9 +452,6 @@ func (w *Workspace) CreateWorkspaceProject(ctx context.Context, cfg ports.Worksp
 		if err != nil {
 			return ports.WorkspaceProjectInfo{}, fmt.Errorf("gitworktree: child repo %q path: %w", child.Name, err)
 		}
-		if err := w.enableWorktreeConfig(ctx, repoPath); err != nil {
-			return ports.WorkspaceProjectInfo{}, fmt.Errorf("gitworktree: child repo %q: %w", child.Name, err)
-		}
 		rel, err := cleanRelativePath(child.RelativePath)
 		if err != nil {
 			return ports.WorkspaceProjectInfo{}, fmt.Errorf("gitworktree: child repo %q: %w", child.Name, err)
@@ -470,6 +468,16 @@ func (w *Workspace) CreateWorkspaceProject(ctx context.Context, cfg ports.Worksp
 			baseBranch:   child.BaseBranch,
 			baseRef:      child.BaseRef,
 		})
+	}
+	for _, repo := range repos {
+		if err := gitpath.CheckWorktree(ctx, repo.repoPath, repo.outputPath); err != nil {
+			return ports.WorkspaceProjectInfo{}, err
+		}
+	}
+	for _, repo := range repos {
+		if err := w.enableWorktreeConfig(ctx, repo.repoPath); err != nil {
+			return ports.WorkspaceProjectInfo{}, err
+		}
 	}
 	requestedBranch := firstNonEmpty(cfg.Branch, defaultSessionBranchName(cfg.SessionID))
 	existing := make(map[int]struct{}, len(repos))
@@ -1433,11 +1441,14 @@ func (w *Workspace) Restore(ctx context.Context, cfg ports.WorkspaceConfig) (por
 	if err != nil {
 		return ports.WorkspaceInfo{}, err
 	}
-	if err := w.enableWorktreeConfig(ctx, repo); err != nil {
-		return ports.WorkspaceInfo{}, err
-	}
 	path, err := w.restorePath(cfg)
 	if err != nil {
+		return ports.WorkspaceInfo{}, err
+	}
+	if err := gitpath.CheckWorktree(ctx, repo, path); err != nil {
+		return ports.WorkspaceInfo{}, err
+	}
+	if err := w.enableWorktreeConfig(ctx, repo); err != nil {
 		return ports.WorkspaceInfo{}, err
 	}
 	records, err := w.listRecords(ctx, repo)

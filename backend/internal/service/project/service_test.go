@@ -1024,7 +1024,13 @@ func TestManager_Add_DisplayNameValidationAndTruncation(t *testing.T) {
 		t.Fatalf("Add name = %q, want %q", p24.Name, valid24)
 	}
 
-	base := t.TempDir()
+	// Keep the 101-character basename inside the supported Windows root limit;
+	// t.TempDir includes this long test's name in its parent directory.
+	base, err := os.MkdirTemp("", "name-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(base) })
 	longName := strings.Repeat("r", 101)
 	longPath := filepath.Join(base, longName)
 	if err := os.Mkdir(longPath, 0o755); err != nil {

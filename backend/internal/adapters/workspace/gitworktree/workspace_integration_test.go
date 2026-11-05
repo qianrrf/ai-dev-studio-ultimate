@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf16"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 )
 
@@ -93,7 +95,55 @@ func testWorkspaceIntegrationChinesePaths(t *testing.T, longRoot bool) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
+	configPath := filepath.Join(repo, ".git", "config")
+	beforeConfig, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	info, err := ws.Create(ctx, ports.WorkspaceConfig{ProjectID: "proj", SessionID: "long-path-worker", Branch: "feature/long-path"})
+	if longRoot && runtime.GOOS == "windows" {
+		var pathError *apierr.Error
+		if !errors.As(err, &pathError) || pathError.Code != "WINDOWS_GIT_PATH_TOO_LONG" {
+			t.Fatalf("long root error = %v, want structured path refusal", err)
+		}
+		afterConfig, readErr := os.ReadFile(configPath)
+		if readErr != nil || string(beforeConfig) != string(afterConfig) {
+			t.Fatalf("refused request changed Git configuration: %v", readErr)
+		}
+		if _, statErr := os.Stat(root); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("refused request created workspace root: %v", statErr)
+		}
+		branches, branchErr := ws.run(ctx, git, "-C", repo, "branch", "--list", "feature/long-path")
+		if branchErr != nil {
+			t.Fatal(branchErr)
+		}
+		if strings.TrimSpace(string(branches)) != "" {
+			t.Fatalf("refused request created branch: %q", branches)
+		}
+		// An old unsupported workspace remains available for inspection and
+		// manual recovery; refusal must not delete uncommitted user files.
+		legacyPath := filepath.Join(root, "proj", "long-path-worker")
+		if err := os.MkdirAll(legacyPath, 0700); err != nil {
+			t.Fatal(err)
+		}
+		marker := filepath.Join(legacyPath, "uncommitted.txt")
+		if err := os.WriteFile(marker, []byte("keep my changes"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		_, err = ws.Restore(ctx, ports.WorkspaceConfig{ProjectID: "proj", SessionID: "long-path-worker", Branch: "feature/long-path", Path: legacyPath})
+		if !errors.As(err, &pathError) || pathError.Code != "WINDOWS_GIT_PATH_TOO_LONG" {
+			t.Fatalf("restore error = %v, want structured path refusal", err)
+		}
+		data, readErr := os.ReadFile(marker)
+		if readErr != nil || string(data) != "keep my changes" {
+			t.Fatalf("restore refusal changed old workspace: %q, %v", data, readErr)
+		}
+		afterConfig, readErr = os.ReadFile(configPath)
+		if readErr != nil || string(beforeConfig) != string(afterConfig) {
+			t.Fatalf("restore refusal changed Git configuration: %v", readErr)
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
