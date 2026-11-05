@@ -774,7 +774,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const permissionDiscovery = useChatPermissionModesQuery(hostId, usesChatPermissions ? selectedAgent : undefined);
 	const chatPermissionModes = permissionDiscovery.data?.get(selectedAgent);
 	const projectPermissions = projectConfig?.worker?.agentConfig?.permissions ?? projectConfig?.agentConfig?.permissions;
-	const wantedApproval = approvalMode ?? (isCloudProject ? "bypass-permissions" : APPROVAL_MODES.includes(projectPermissions as ApprovalMode) ? projectPermissions as ApprovalMode : "auto");
+	const wantedApproval = approvalMode ?? (isCloudProject ? "bypass-permissions" : APPROVAL_MODES.includes(projectPermissions as ApprovalMode) ? projectPermissions as ApprovalMode : selectedAgent === "codex" ? "default" : "auto");
 	// An inherited or stale choice cannot invent an ACP mode. Use the agent's
 	// normal approval behavior when it has no alternatives, never implicitly bypass.
 	// Keep the chosen policy intact so switching back restores it.

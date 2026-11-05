@@ -3645,6 +3645,29 @@ describe("useTaskLaunch on the new chat page", () => {
 });
 
 describe("Chat launch permission capability boundary", () => {
+	it.each(["proj-1", "__standalone__"])("shows Codex manual defaults without overriding an explicit policy in %s", async (projectId) => {
+		h.agentCatalog = { agents: [agentReadiness("codex", "Codex")] };
+		h.get.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/settings") return { data: { defaultSessionMode: "chat", chatHarnesses: ["codex"], agent: "codex" } };
+			if (path.includes("/models")) return { data: { models: [], allowCustom: true, selectionMode: "text" } };
+			return { data: { status: "ok", project: { id: "proj-1", config: { worker: { agent: "codex" } } } } };
+		});
+		h.post.mockResolvedValue({ data: { session: { id: "standalone-1" }, workerId: "proj-1-1" } });
+		let task!: ReturnType<typeof useTaskLaunch>;
+		function Launcher() { task = useTaskLaunch({ projectId }); return null; }
+		render(<Wrap><Launcher /></Wrap>);
+		await waitFor(() => expect(task.canSubmit).toBe(true));
+		expect(task.turnSettings.approvalMode).toBe("default");
+		expect(task.launchSnapshot().approvalMode).toBeUndefined();
+		const path = projectId === "__standalone__" ? "/api/v1/sessions" : "/api/v1/orchestrators/delegate";
+		await act(async () => { await task.launch("use manual defaults"); });
+		const defaults = h.post.mock.calls.filter(([route]) => route === path).at(-1);
+		expect(defaults?.[1].body).not.toHaveProperty("approvalMode");
+		act(() => task.chooseTurnSettings({ ...task.turnSettings, approvalMode: "bypass-permissions" }));
+		expect(task.turnSettings.approvalMode).toBe("bypass-permissions");
+		await act(async () => { await task.launch("explicit bypass"); });
+		expect(h.post).toHaveBeenLastCalledWith(path, expect.objectContaining({ body: expect.objectContaining({ approvalMode: "bypass-permissions" }) }));
+	});
 	it.each(["proj-1", "__standalone__"])("preserves Unreal's omitted harness policy for direct and replay launches in %s", async (projectId) => {
 		h.realPermissionDiscovery = true;
 		h.agentCatalog = { agents: [agentReadiness("unreal-agent", "Unreal Agent")] };
