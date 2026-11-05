@@ -3,6 +3,7 @@ package codexappserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -77,7 +78,7 @@ func TestInterruptRefusalDoesNotCleanACompletedOrDifferentTurn(t *testing.T) {
 	}
 	defer func() { _ = conv.Close() }()
 	srv.replyError("turn/interrupt", -32600, "no active turn")
-	if err := conv.Interrupt(context.Background(), "finished-turn"); err != ports.ErrChatNoActiveTurn {
+	if err := conv.Interrupt(context.Background(), "finished-turn"); !errors.Is(err, ports.ErrChatNoActiveTurn) {
 		t.Fatalf("interrupt = %v", err)
 	}
 	if srv.sentMethod("thread/backgroundTerminals/clean") {
